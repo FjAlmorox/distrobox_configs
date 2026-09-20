@@ -29,9 +29,13 @@ distrobox_configs/
 ├── .editorconfig               # Indentation, UTF-8, and LF normalization across editors
 ├── .env.example                # Public and generic environment variables template
 ├── .gitattributes              # Strict protection: enforces LF for scripts and CLI tools
+├── .github/
+│   └── workflows/
+│       └── ci.yml              # CI/CD: Automated linting, syntax, and secret scanning
 ├── .githooks/                  # Versioned Git hooks in the repository
 │   ├── pre-commit              # Local scanner: blocks personal data and secret leaks on commit
 │   └── pre-push                # Global auditor: blocks pushes with secrets or private paths
+
 ├── .gitignore                  # Exclusions for secrets, temporary files, IDEs, and homes
 ├── AGENTS.md                   # Operational guidelines and protocol for AI Agents
 ├── LICENSE                     # MIT Open Source License
@@ -88,14 +92,23 @@ git config core.hooksPath .githooks
 ./.githooks/pre-push
 ```
 
-### 3. Strict Exclusion Shielding (`.gitignore`)
+### 3. Continuous Integration & Quality Gate (`.github/workflows/ci.yml`)
+Every push and pull request is automatically verified by a lightweight, resource-optimized GitHub Actions workflow running on standard `ubuntu-latest`:
+* **Bash Syntax Verification**: Runs `bash -n` across all scripts.
+* **Permission & Integrity Check**: Ensures all scripts have `100755` executable permissions and Unix `LF` line endings.
+* **Security & Privacy Audit**: Executes `./.githooks/pre-commit --all`.
+* **ShellCheck Linting**: Validates static bash quality and best practices.
+* **Gitleaks Secret Scanning**: Analyzes git history for potential secrets and credentials.
+
+### 4. Strict Exclusion Shielding (`.gitignore`)
 * **Secrets and Environments**: Blocks `.env`, `*.env`, certificates, private keys (`*.key`, `*.pem`, `id_rsa*`, etc.), and Android keystores (`*.keystore`, `*.jks`, `keystore.properties`, `local.properties`).
 * **Safe Local Overrides**: Enables developers to maintain private local overrides (`distrobox.local.ini`, `*.local`, `local/`) without any risk of committing them.
 * **Distrobox Isolation**: Prevents accidental tracking of isolated home directories (`distrobox-homes/`).
 
-### 4. Normalization and Execution Permissions (`.gitattributes` & `.editorconfig`)
+### 5. Normalization and Execution Permissions (`.gitattributes` & `.editorconfig`)
 * **Enforce Unix `LF` Line Endings**: Prevents Windows checkouts or edits from corrupting shell scripts (`*.sh`, `create.sh`, `enter.sh`, `*/bin/*`, `*-dev/bin/*`).
 * **Preserve Executable Permissions (`100755`)**: Git explicitly tracks execution bits so all scripts remain executable upon checkout.
+
 
 ---
 

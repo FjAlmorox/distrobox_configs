@@ -88,8 +88,11 @@ show_status() {
         local avds
         avds=$("$EMULATOR" -list-avds 2>/dev/null || true)
         if [ -n "$avds" ]; then
-            echo "$avds" | sed 's/^/   • /'
+            while IFS= read -r avd_item; do
+                [ -n "$avd_item" ] && echo "   • $avd_item"
+            done <<< "$avds"
         else
+
             echo "   (No AVDs created)"
         fi
     else

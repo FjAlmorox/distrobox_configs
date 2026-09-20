@@ -71,15 +71,18 @@ export ANDROID_AVD_HOME="$HOME/.config/.android/avd"
 export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$HOME/.local/bin:$PATH"
 
 if ! grep -q "ANDROID_HOME" "$HOME/.bashrc" 2>/dev/null; then
-    echo "" >> "$HOME/.bashrc"
-    echo "# Android SDK Configuration (Distrobox Sandbox)" >> "$HOME/.bashrc"
-    echo "export ANDROID_HOME=\"\$HOME/Android/Sdk\"" >> "$HOME/.bashrc"
-    echo "export ANDROID_AVD_HOME=\"\$HOME/.config/.android/avd\"" >> "$HOME/.bashrc"
-    echo "export PATH=\"\$ANDROID_HOME/cmdline-tools/latest/bin:\$ANDROID_HOME/platform-tools:\$ANDROID_HOME/emulator:\$HOME/.local/bin:\$PATH\"" >> "$HOME/.bashrc"
-    if [ -d "/usr/lib/jvm/java-21-openjdk" ]; then
-        echo "export JAVA_HOME=\"/usr/lib/jvm/java-21-openjdk\"" >> "$HOME/.bashrc"
-    fi
+    {
+        echo ""
+        echo "# Android SDK Configuration (Distrobox Sandbox)"
+        echo "export ANDROID_HOME=\"\$HOME/Android/Sdk\""
+        echo "export ANDROID_AVD_HOME=\"\$HOME/.config/.android/avd\""
+        echo "export PATH=\"\$ANDROID_HOME/cmdline-tools/latest/bin:\$ANDROID_HOME/platform-tools:\$ANDROID_HOME/emulator:\$HOME/.local/bin:\$PATH\""
+        if [ -d "/usr/lib/jvm/java-21-openjdk" ]; then
+            echo "export JAVA_HOME=\"/usr/lib/jvm/java-21-openjdk\""
+        fi
+    } >> "$HOME/.bashrc"
 fi
+
 
 # 6. Accept Android licenses
 echo ""

@@ -95,16 +95,21 @@ sdk install kotlin || true
 echo ""
 echo "⚙️  [6/6] Configuring environment variables in ~/.bashrc..."
 if ! grep -q "SDKMAN_DIR" "$HOME/.bashrc" 2>/dev/null; then
-    echo "" >> "$HOME/.bashrc"
-    echo "# SDKMAN Configuration (Distrobox Sandbox java-dev)" >> "$HOME/.bashrc"
-    echo "export SDKMAN_DIR=\"\$HOME/.sdkman\"" >> "$HOME/.bashrc"
-    echo "[[ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ]] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\"" >> "$HOME/.bashrc"
+    {
+        echo ""
+        echo "# SDKMAN Configuration (Distrobox Sandbox java-dev)"
+        echo "export SDKMAN_DIR=\"\$HOME/.sdkman\""
+        echo "[[ -s \"\$HOME/.sdkman/bin/sdkman-init.sh\" ]] && source \"\$HOME/.sdkman/bin/sdkman-init.sh\""
+    } >> "$HOME/.bashrc"
 fi
 
 if ! grep -q "JAVA_HOME" "$HOME/.bashrc" 2>/dev/null; then
-    echo "export JAVA_HOME=\"\$HOME/.sdkman/candidates/java/current\"" >> "$HOME/.bashrc"
-    echo "export PATH=\"\$JAVA_HOME/bin:\$HOME/.local/bin:\$PATH\"" >> "$HOME/.bashrc"
+    {
+        echo "export JAVA_HOME=\"\$HOME/.sdkman/candidates/java/current\""
+        echo "export PATH=\"\$JAVA_HOME/bin:\$HOME/.local/bin:\$PATH\""
+    } >> "$HOME/.bashrc"
 fi
+
 
 # 8. Install CLI tools from bin/ into ~/.local/bin
 if [ -d "$SCRIPT_DIR/bin" ]; then

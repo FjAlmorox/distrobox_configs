@@ -1,0 +1,82 @@
+name: CI & Security Audit
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Optimize resource consumption: cancel redundant in-progress runs when a new push occurs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Restrict permissions to read-only for maximum security
+permissions:
+  contents: read
+
+jobs:
+  lint-and-audit:
+    name: Lint, Syntax & Security Audit
+    # Standard GitHub-hosted Linux runner: 100% free and unlimited on public repos.
+    # Uses the standard compute allocation (2 vCPU, 7 GB RAM) with minimal start-up overhead.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify script syntax (bash -n)
+        run: |
+          echo "Checking bash script syntax..."
+          bash -n create.sh enter.sh \
+            android-dev/setup.sh android-dev/bin/change_version \
+            java-dev/setup.sh java-dev/bin/change_version \
+            .githooks/pre-commit .githooks/pre-push
+          echo "All scripts passed syntax validation."
+
+      - name: Verify file permissions and Unix LF line endings
+        run: |
+          echo "Verifying executable bits (mode 755)..."
+          for script in create.sh enter.sh \
+                        android-dev/setup.sh android-dev/bin/change_version \
+                        java-dev/setup.sh java-dev/bin/change_version \
+                        .githooks/pre-commit .githooks/pre-push; do
+            if [ ! -x "$script" ]; then
+              echo "Error: $script is not marked as executable!"
+              exit 1
+            fi
+          done
+
+          echo "Verifying Unix LF line endings..."
+          if grep -r -l $'\r' --exclude-dir=".git" .; then
+            echo "Error: Detected CRLF line endings in repository files!"
+            exit 1
+          fi
+          echo "All permissions and line endings are correct."
+
+      - name: Run repository privacy & secrets audit
+        run: |
+          chmod +x .githooks/pre-commit .githooks/pre-push
+          ./.githooks/pre-commit --all
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq --no-install-recommends shellcheck
+
+      - name: Run ShellCheck linter
+        run: |
+          shellcheck create.sh enter.sh \
+            android-dev/setup.sh android-dev/bin/change_version \
+            java-dev/setup.sh java-dev/bin/change_version \
+            .githooks/pre-commit .githooks/pre-push
+
+      - name: Run Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

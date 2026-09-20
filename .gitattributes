@@ -12,6 +12,9 @@ enter.sh text eol=lf
 # Text and configuration files
 *.md text
 *.ini text
+*.yml text
+*.yaml text
 .gitignore text
 .gitattributes text
 LICENSE text
+

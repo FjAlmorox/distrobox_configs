@@ -156,13 +156,20 @@ list_local() {
     echo "Other tools installed via SDKMAN:"
     for candidate in gradle maven kotlin; do
         if [ -d "$SDKMAN_DIR/candidates/$candidate" ]; then
-            local versions
-            versions=$(ls -1 "$SDKMAN_DIR/candidates/$candidate" 2>/dev/null | grep -v 'current' | tr '\n' ' ' || true)
-            if [ -n "$versions" ]; then
-                echo "  • $candidate: $versions"
+            local versions=()
+            for ver_dir in "$SDKMAN_DIR/candidates/$candidate"/*; do
+                [ -d "$ver_dir" ] || continue
+                local v_name
+                v_name=$(basename "$ver_dir")
+                [ "$v_name" = "current" ] && continue
+                versions+=("$v_name")
+            done
+            if [ ${#versions[@]} -gt 0 ]; then
+                echo "  • $candidate: ${versions[*]}"
             fi
         fi
     done
+
     echo "======================================================="
 }
 
