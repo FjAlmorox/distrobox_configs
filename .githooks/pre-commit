@@ -26,16 +26,21 @@ ERRORS_FOUND=0
 if [ "$MODE" = "all" ]; then
     echo -e "${BLUE}🔍 [Security Audit] Scanning ENTIRE repository for secrets or personal data...${NC}"
 
-    # 1. Check local host username across tracked files
-    if [ -n "$CURRENT_USER" ] && [ "$CURRENT_USER" != "root" ]; then
-        USER_MATCHES=$(git grep -I -w "$CURRENT_USER" -- ':(exclude).githooks/*' || true)
-        if [ -n "$USER_MATCHES" ]; then
-            echo -e "${RED}❌ ERROR: Detected local username '$CURRENT_USER' in tracked files:${NC}"
-            echo "$USER_MATCHES" | head -n 5
-            echo -e "${YELLOW}👉 Replace with generic variables (\$USER, \${HOME}) or abstract placeholders.${NC}\n"
-            ERRORS_FOUND=1
-        fi
-    fi
+    # 1. Check local host username across tracked files (ignore generic system/CI users)
+    case "$CURRENT_USER" in
+        root|runner|runneradmin|ubuntu|node|circleci|travis|"")
+            ;;
+        *)
+            USER_MATCHES=$(git grep -I -w "$CURRENT_USER" -- ':(exclude).githooks/*' || true)
+            if [ -n "$USER_MATCHES" ]; then
+                echo -e "${RED}❌ ERROR: Detected local username '$CURRENT_USER' in tracked files:${NC}"
+                echo "$USER_MATCHES" | head -n 5
+                echo -e "${YELLOW}👉 Replace with generic variables (\$USER, \${HOME}) or abstract placeholders.${NC}\n"
+                ERRORS_FOUND=1
+            fi
+            ;;
+    esac
+
 
     # 2. Check hardcoded host absolute paths
     HOME_MATCHES=$(git grep -I -E "/home/[a-zA-Z0-9_-]+" -- ':(exclude).githooks/*' 2>/dev/null | grep -vE "/home/(\\\$USER|\$\{HOME\}|username|user|<|\{)" || true)
@@ -80,16 +85,21 @@ else
 
     echo -e "${BLUE}🔍 [Security Audit] Inspecting staged changes for secrets or personal data...${NC}"
 
-    # 1. Check local host username in added lines
-    if [ -n "$CURRENT_USER" ] && [ "$CURRENT_USER" != "root" ]; then
-        USER_MATCHES=$(git diff --cached -U0 -- ':(exclude).githooks/*' | grep -E "^\+[^\+]" | grep -w "$CURRENT_USER" || true)
-        if [ -n "$USER_MATCHES" ]; then
-            echo -e "${RED}❌ ERROR: Detected local username '$CURRENT_USER' in staged changes:${NC}"
-            echo "$USER_MATCHES" | head -n 5
-            echo -e "${YELLOW}👉 Replace with generic variables (\$USER, \${HOME}) or abstract placeholders.${NC}\n"
-            ERRORS_FOUND=1
-        fi
-    fi
+    # 1. Check local host username in added lines (ignore generic system/CI users)
+    case "$CURRENT_USER" in
+        root|runner|runneradmin|ubuntu|node|circleci|travis|"")
+            ;;
+        *)
+            USER_MATCHES=$(git diff --cached -U0 -- ':(exclude).githooks/*' | grep -E "^\+[^\+]" | grep -w "$CURRENT_USER" || true)
+            if [ -n "$USER_MATCHES" ]; then
+                echo -e "${RED}❌ ERROR: Detected local username '$CURRENT_USER' in staged changes:${NC}"
+                echo "$USER_MATCHES" | head -n 5
+                echo -e "${YELLOW}👉 Replace with generic variables (\$USER, \${HOME}) or abstract placeholders.${NC}\n"
+                ERRORS_FOUND=1
+            fi
+            ;;
+    esac
+
 
     # 2. Check hardcoded host paths in added lines
     HOME_PATH_MATCHES=$(git diff --cached -U0 -- ':(exclude).githooks/*' | grep -E "^\+[^\+]" | grep -E "/home/[a-zA-Z0-9_-]+" | grep -vE "/home/(\\\$USER|\$\{HOME\}|username|user|<|\{)" || true)
