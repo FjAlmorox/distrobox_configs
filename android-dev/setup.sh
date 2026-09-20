@@ -52,21 +52,31 @@ fi
 
 # 2. Install system packages inside container
 echo ""
-echo "📦 [1/5] Installing JDK 21 and graphical/multimedia libraries in sandbox..."
+echo "📦 [1/5] Installing base toolchain (JDK 21, utilities)..."
+BASE_PACKAGES_FEDORA="java-21-openjdk-devel wget curl unzip git which file tar findutils procps-ng"
+EMULATOR_PACKAGES_FEDORA="libglvnd-glx mesa-dri-drivers libX11 libXext libXdamage libXfixes libXcursor libXrandr libxkbcommon libXi libXrender pulseaudio-libs vulkan-loader pciutils xrandr"
+
+BASE_PACKAGES_DEBIAN="openjdk-21-jdk wget curl unzip git file procps"
+EMULATOR_PACKAGES_DEBIAN="libgl1-mesa-glx libgl1-mesa-dri libpulse0 libxcursor1 libxcomposite1 libasound2t64 libvulkan1 pciutils"
+
 if command -v dnf >/dev/null 2>&1; then
-    sudo dnf install -y --skip-unavailable \
-        java-21-openjdk-devel \
-        wget curl unzip git which file tar \
-        libglvnd-glx mesa-dri-drivers \
-        libX11 libXext libXdamage libXfixes libXcursor libXrandr libxkbcommon libXi libXrender \
-        pulseaudio-libs vulkan-loader pciutils xrandr
+    PACKAGES_TO_INSTALL="$BASE_PACKAGES_FEDORA"
+    if [ "$INSTALL_EMULATOR" = "true" ]; then
+        echo "   (Including emulator GPU, X11, Vulkan, and audio libraries)"
+        PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL $EMULATOR_PACKAGES_FEDORA"
+    else
+        echo "   (Headless mode: skipping emulator GPU and multimedia libraries)"
+    fi
+    # shellcheck disable=SC2086
+    sudo dnf install -y --skip-unavailable $PACKAGES_TO_INSTALL
 elif command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update
-    sudo apt-get install -y \
-        openjdk-21-jdk \
-        wget curl unzip git file \
-        libgl1-mesa-glx libgl1-mesa-dri \
-        libpulse0 libxcursor1 libxcomposite1 libasound2t64 libvulkan1 pciutils
+    PACKAGES_TO_INSTALL="$BASE_PACKAGES_DEBIAN"
+    if [ "$INSTALL_EMULATOR" = "true" ]; then
+        PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL $EMULATOR_PACKAGES_DEBIAN"
+    fi
+    # shellcheck disable=SC2086
+    sudo apt-get install -y $PACKAGES_TO_INSTALL
 fi
 
 # 3. Configure Android SDK directories in isolated home
@@ -115,12 +125,13 @@ yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 
 
 # 7. Install core SDK components
 echo ""
-echo "⬇️  [4/5] Downloading SDK components (platform-tools, platforms;android-${ANDROID_COMPILE_SDK}, build-tools;${ANDROID_BUILD_TOOLS}, emulator)..."
-yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-    "platform-tools" \
-    "platforms;android-${ANDROID_COMPILE_SDK}" \
-    "build-tools;${ANDROID_BUILD_TOOLS}" \
-    "emulator"
+echo "⬇️  [4/5] Downloading SDK components (platform-tools, platforms;android-${ANDROID_COMPILE_SDK}, build-tools;${ANDROID_BUILD_TOOLS})..."
+SDK_COMPONENTS="platform-tools platforms;android-${ANDROID_COMPILE_SDK} build-tools;${ANDROID_BUILD_TOOLS}"
+if [ "$INSTALL_EMULATOR" = "true" ]; then
+    SDK_COMPONENTS="$SDK_COMPONENTS emulator"
+fi
+# shellcheck disable=SC2086
+yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" $SDK_COMPONENTS
 
 # 8. Install emulator system image and create AVD (optional)
 if [ "$INSTALL_EMULATOR" = "true" ]; then
