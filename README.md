@@ -1,6 +1,10 @@
 # 📦 Distrobox Configs - Isolated Development Environments
 
+[![CI & Security Audit](https://github.com/FjAlmorox/distrobox_configs/actions/workflows/ci.yml/badge.svg)](https://github.com/FjAlmorox/distrobox_configs/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
 Central repository to manage development environments and containers on **Fedora** using **Distrobox** and **Podman**.
+
 
 ---
 
@@ -93,12 +97,20 @@ git config core.hooksPath .githooks
 ```
 
 ### 3. Continuous Integration & Quality Gate (`.github/workflows/ci.yml`)
-Every push and pull request is automatically verified by a lightweight, resource-optimized GitHub Actions workflow running on standard `ubuntu-latest`:
-* **Bash Syntax Verification**: Runs `bash -n` across all scripts.
-* **Permission & Integrity Check**: Ensures all scripts have `100755` executable permissions and Unix `LF` line endings.
-* **Security & Privacy Audit**: Executes `./.githooks/pre-commit --all`.
-* **ShellCheck Linting**: Validates static bash quality and best practices.
-* **Gitleaks Secret Scanning**: Analyzes git history for potential secrets and credentials.
+Every push to `main` and every pull request targeting `main` is automatically verified by a lightweight, resource-optimized GitHub Actions workflow running on standard `ubuntu-latest`:
+* **Zero-Cost, Minimal Footprint**: Runs in a single unified job without container overhead, completing in under 25 seconds.
+* **Trigger Policy**: Only runs on `main` and Pull Requests. Developers can push to working branches (e.g. `feature/<name>`) without consuming CI runner time until ready to merge.
+* **Concurrency Auto-Cancellation**: Cancels obsolete in-progress runs automatically on new pushes to prevent wasted compute.
+* **Pipeline Checks**:
+  * **Bash Syntax Verification**: Runs `bash -n` across all scripts.
+  * **Permission & Integrity Check**: Ensures all scripts have `100755` executable permissions and Unix `LF` line endings.
+  * **Security & Privacy Audit**: Executes `./.githooks/pre-commit --all`.
+  * **ShellCheck Linting**: Validates static bash quality and best practices with zero warnings.
+  * **Gitleaks Secret Scanning**: Analyzes git history for potential secrets and credentials.
+
+> [!TIP]
+> **Recommended Server-Side Setting**: For total defense-in-depth, enable **Secret scanning** and **Push protection** in your GitHub repository under *Settings* ➔ *Code security and analysis*. This blocks any push containing known tokens directly on GitHub's servers before the commits are accepted.
+
 
 ### 4. Strict Exclusion Shielding (`.gitignore`)
 * **Secrets and Environments**: Blocks `.env`, `*.env`, certificates, private keys (`*.key`, `*.pem`, `id_rsa*`, etc.), and Android keystores (`*.keystore`, `*.jks`, `keystore.properties`, `local.properties`).

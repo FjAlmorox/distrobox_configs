@@ -59,12 +59,16 @@ Act as a **Senior Linux Systems and DevOps Engineer** specialized in **Distrobox
 
 Every AI agent MUST follow this protocol before suggesting or executing any version control operations:
 
-1. **Before a Commit (`git commit`)**:
+1. **Branching & CI Strategy**:
+   * **Feature Branches**: Develop new sandboxes and features in dedicated branches (`feature/<name>-dev` or `fix/<topic>`).
+   * **Resource-Optimized CI Triggers**: GitHub Actions runs exclusively on `push` to `main` and `pull_request` targeting `main`. Working branches do not consume CI minutes until ready for review/merge.
+2. **Before a Commit (`git commit`)**:
    * Check staged files: `git status` (no unexpected files or pollution).
+   * Verify static bash syntax & quality: `bash -n <scripts>` and `shellcheck <scripts>` (if available locally; strictly enforced in CI).
    * Run staging validation: `./.githooks/pre-commit`
    * If the script detects host usernames, `/home/...` paths, or secrets, the agent MUST fix them immediately.
    * NEVER use `git commit --no-verify`.
-2. **Before a Push (`git push`)**:
+3. **Before a Push (`git push`)**:
    * Run security audit across the entire repository: `./.githooks/pre-push` (or `./.githooks/pre-commit --all`).
    * Verify clean commit history to push (`git log -n 5 --stat`).
    * NEVER use `git push --no-verify`.
@@ -137,6 +141,8 @@ Generate modular structure:
 ### Phase 5: Technical Validation and Git Preparation
 * Verify script syntax:
   `bash -n <script>`
+* Verify static script quality and best practices:
+  `shellcheck <script>` (if available locally; enforced in CI)
 * Ensure execution permissions required by Git (mode `100755`):
   `chmod +x <scripts>`
 * Verify Git attributes (enforced LF line endings):
@@ -176,7 +182,7 @@ A task creating or modifying a sandbox is considered complete ONLY if:
 4. All user CLI commands reside in `<name>-dev/bin/` without `.sh` extension.
 5. `setup.sh` is 100% non-interactive, idempotent, and transfers `bin/*` to `~/.local/bin/`.
 6. Environment documentation (`<name>-dev/README.md`) and the main [`README.md`](./README.md) are updated.
-7. All scripts pass `bash -n` without warnings or syntax errors.
+7. All scripts pass `bash -n` without syntax errors and `shellcheck` with zero warnings.
 8. All new scripts have executable permissions (`chmod +x` / mode `100755`), are covered by `.gitattributes` (enforcing LF), and are properly verified for Git.
 9. The repository cleanly passes mandatory pre-commit and pre-push checks (`./.githooks/pre-commit` and `./.githooks/pre-push`) with zero personal data, host paths, or leaked credentials, with `--no-verify` strictly prohibited.
 10. All code, scripts, CLI tools, messages, comments, and documentation are strictly written in English.
