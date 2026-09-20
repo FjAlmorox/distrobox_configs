@@ -132,6 +132,15 @@ All contributions and new environment branches submitted to `main` must use the 
 * **Testing Steps**: Documents manual verification commands (`./create.sh`, `./enter.sh`).
 * **Interactive DoD Checklist**: Requires interactive confirmation of all Definition of Done invariants (clean static checks, executable bits, zero privacy leaks) before merge.
 
+### 7. Hierarchical Environment Customization (`.env.example`)
+You can customize container base versions, storage paths, and tooling toggles locally without altering version-controlled files:
+1. Copy [`.env.example`](./.env.example) to `.env` in the repository root:
+   ```bash
+   cp .env.example .env
+   ```
+2. Configure desired variables (e.g. `FEDORA_VERSION=44`, `INSTALL_GUI=false`, `INSTALL_EMULATOR=false`).
+Both [`create.sh`](./create.sh), [`enter.sh`](./enter.sh), and internal `setup.sh` scripts automatically detect and apply settings from `.env`.
+
 
 ---
 
@@ -139,8 +148,8 @@ All contributions and new environment branches submitted to `main` must use the 
 
 | Environment | Directory | Base Image | Focus | Documentation |
 | :--- | :--- | :--- | :--- | :--- |
-| **`android-dev`** | [`./android-dev/`](./android-dev/) | `fedora-toolbox:41` | Android SDK, x86_64 Emulator, AVDs, ADB, OpenJDK 21 | [View details](./android-dev/README.md) |
-| **`java-dev`** | [`./java-dev/`](./java-dev/) | `fedora-toolbox:41` | Java 21, Kotlin, SDKMAN, Gradle, Maven, GraalVM tools, Desktop GUI | [View details](./java-dev/README.md) |
+| **`android-dev`** | [`./android-dev/`](./android-dev/) | `fedora-toolbox:44` | Android SDK, x86_64 Emulator, AVDs, ADB, OpenJDK 21 | [View details](./android-dev/README.md) |
+| **`java-dev`** | [`./java-dev/`](./java-dev/) | `fedora-toolbox:44` | Java 21, Kotlin, SDKMAN, Gradle, Maven, GraalVM tools, Desktop GUI | [View details](./java-dev/README.md) |
 
 ---
 

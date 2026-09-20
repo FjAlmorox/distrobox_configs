@@ -6,7 +6,7 @@
 
 <!-- If introducing or modifying a sandbox environment, complete this section: -->
 - **Container Name**: `<!-- e.g. python-dev -->`
-- **Base Image**: `<!-- e.g. registry.fedoraproject.org/fedora-toolbox:41 -->`
+- **Base Image**: `<!-- e.g. registry.fedoraproject.org/fedora-toolbox:44 -->`
 - **Isolated `$HOME`**: `~/.local/share/distrobox-homes/<name>-dev`
 - **Pre-installed SDKs / Toolchains**: `<!-- e.g. Python 3.12, pyenv, poetry -->`
 - **CLI Commands in `bin/`**: `<!-- e.g. change_version -->`

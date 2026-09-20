@@ -9,7 +9,21 @@ set -e
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE_DIR="${WORKSPACE_DIR:-$HOME/Workspace}"
+
+# Load optional local overrides from .env
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    # shellcheck source=/dev/null
+    source "$SCRIPT_DIR/.env"
+fi
+
+# Export environment defaults for Distrobox manifest evaluation
+export FEDORA_VERSION="${FEDORA_VERSION:-44}"
+export WORKSPACE_DIR="${WORKSPACE_DIR:-$HOME/Workspace}"
+export DISTROBOX_HOMES_DIR="${DISTROBOX_HOMES_DIR:-$HOME/.local/share/distrobox-homes}"
+export DISTROBOX_ADDITIONAL_FLAGS="${DISTROBOX_ADDITIONAL_FLAGS:---device /dev/kvm --device /dev/dri}"
+export DISTROBOX_NVIDIA="${DISTROBOX_NVIDIA:-0}"
+export DISTROBOX_PULL="${DISTROBOX_PULL:-1}"
+
 INI_FILE="$SCRIPT_DIR/distrobox.ini"
 
 if [ ! -f "$INI_FILE" ]; then
@@ -65,7 +79,7 @@ if [ "$FOUND" = false ]; then
     exit 1
 fi
 
-BOX_HOME="$HOME/.local/share/distrobox-homes/$BOX_NAME"
+BOX_HOME="$DISTROBOX_HOMES_DIR/$BOX_NAME"
 
 echo ""
 echo "======================================================="

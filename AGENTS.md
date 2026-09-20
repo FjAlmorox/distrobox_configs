@@ -16,14 +16,14 @@ Act as a **Senior Linux Systems and DevOps Engineer** specialized in **Distrobox
 
 1. **Total `$HOME` Isolation**:
    Each container MUST have its own isolated home directory at:
-   `~/.local/share/distrobox-homes/<name>-dev`
+   `${DISTROBOX_HOMES_DIR:-~/.local/share/distrobox-homes}/<name>-dev`
    NEVER mount or share the real host `$HOME`.
 2. **Shared Workspace**:
-   The host `${HOME}/Workspace` is always transparently mounted at the identical absolute path:
-   `${HOME}/Workspace:${HOME}/Workspace:rw`
+   The host `${WORKSPACE_DIR:-${HOME}/Workspace}` is always transparently mounted at the identical absolute path:
+   `${WORKSPACE_DIR:-${HOME}/Workspace}:${WORKSPACE_DIR:-${HOME}/Workspace}:rw`
 3. **Hardware Acceleration**:
    Every container must include GPU passthrough and hardware virtualization by default:
-   `additional_flags="--device /dev/kvm --device /dev/dri"`
+   `additional_flags="${DISTROBOX_ADDITIONAL_FLAGS:---device /dev/kvm --device /dev/dri}"`
 4. **Strict Host vs. Container Boundary**:
    * **Root Level (`/`)**: Host lifecycle orchestration.
      * [`distrobox.ini`](./distrobox.ini) is the **single source of truth** for images, flags, and volume mounts.
@@ -96,7 +96,7 @@ When a new development environment is requested, follow these **5 Phases**:
 ### Phase 1: Requirements Analysis and Interview (MANDATORY)
 **NEVER generate code blindly.** Before creating files, ask structured questions to clarify:
 * **Container name:** Mandatory convention `<tech>-dev` (e.g., `python-dev`, `rust-dev`, `go-dev`, `node-dev`).
-* **Base image:** `registry.fedoraproject.org/fedora-toolbox:41` (default) or a specific distribution if technically required.
+* **Base image:** `${DISTROBOX_BASE_IMAGE:-registry.fedoraproject.org/fedora-toolbox:${FEDORA_VERSION:-44}}` (default) or a specific distribution if technically required.
 * **Version managers / SDKs:** Version manager (e.g., `pyenv`, `rustup`, `nvm`, `sdkman`) or system packages?
 * **Initial default version:** Which LTS or stable release should be configured as default?
 * **Compilation toolchain:** Are C/C++ compilers required (`gcc`, `gcc-c++`, `clang`, `glibc-devel`, `make`) for native extensions?
@@ -107,13 +107,13 @@ When a new development environment is requested, follow these **5 Phases**:
 Add section to [`distrobox.ini`](./distrobox.ini):
 ```ini
 [<name>-dev]
-image="registry.fedoraproject.org/fedora-toolbox:41"
-home="${HOME}/.local/share/distrobox-homes/<name>-dev"
-volume="${HOME}/Workspace:${HOME}/Workspace:rw"
-additional_flags="--device /dev/kvm --device /dev/dri"
+image="${DISTROBOX_BASE_IMAGE:-registry.fedoraproject.org/fedora-toolbox:${FEDORA_VERSION:-44}}"
+home="${DISTROBOX_HOMES_DIR:-${HOME}/.local/share/distrobox-homes}/<name>-dev"
+volume="${WORKSPACE_DIR:-${HOME}/Workspace}:${WORKSPACE_DIR:-${HOME}/Workspace}:rw"
+additional_flags="${DISTROBOX_ADDITIONAL_FLAGS:---device /dev/kvm --device /dev/dri}"
 init=false
-nvidia=false
-pull=true
+nvidia=${DISTROBOX_NVIDIA:-0}
+pull=${DISTROBOX_PULL:-1}
 root=false
 ```
 

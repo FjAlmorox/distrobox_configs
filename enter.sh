@@ -9,6 +9,13 @@ set -e
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load optional local overrides from .env
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    # shellcheck source=/dev/null
+    source "$SCRIPT_DIR/.env"
+fi
+
 WORKSPACE_DIR="${WORKSPACE_DIR:-$HOME/Workspace}"
 INI_FILE="$SCRIPT_DIR/distrobox.ini"
 

@@ -9,8 +9,32 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_DIR="${WORKSPACE_DIR:-${DISTROBOX_HOST_HOME:-/home/$(id -un)}/Workspace}"
 
+# Load optional local overrides from .env if present
+if [ -f "$WORKSPACE_DIR/distrobox_configs/.env" ]; then
+    # shellcheck source=/dev/null
+    source "$WORKSPACE_DIR/distrobox_configs/.env"
+elif [ -f "$HOME/.env" ]; then
+    # shellcheck source=/dev/null
+    source "$HOME/.env"
+fi
+
+# Configurable defaults (overridable via environment variables or .env)
+ANDROID_COMPILE_SDK="${ANDROID_COMPILE_SDK:-35}"
+ANDROID_BUILD_TOOLS="${ANDROID_BUILD_TOOLS:-35.0.0}"
+ANDROID_EMULATOR_API="${ANDROID_EMULATOR_API:-34}"
+ANDROID_CMDLINE_TOOLS_VERSION="${ANDROID_CMDLINE_TOOLS_VERSION:-11076708}"
+INSTALL_EMULATOR="${INSTALL_EMULATOR:-true}"
+AVD_NAME="${AVD_NAME:-Pixel_6_API_${ANDROID_EMULATOR_API}}"
+AVD_DEVICE_PROFILE="${AVD_DEVICE_PROFILE:-pixel_6}"
+
 echo "======================================================="
 echo "  🛠️  Provisioning Android Sandbox Environment        "
+echo "======================================================="
+echo "Configuration:"
+echo "  • Compile SDK Platform: android-$ANDROID_COMPILE_SDK"
+echo "  • Build-Tools:          $ANDROID_BUILD_TOOLS"
+echo "  • Emulator API:         $ANDROID_EMULATOR_API"
+echo "  • Install Emulator AVD: $INSTALL_EMULATOR"
 echo "======================================================="
 
 # 1. Verify execution inside container
@@ -54,9 +78,9 @@ mkdir -p "$ANDROID_HOME/cmdline-tools"
 # 4. Download official Android Command-Line Tools if not present
 CMDLINE_LATEST="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
 if [ ! -f "$CMDLINE_LATEST" ]; then
-    echo "📥 Downloading official Android Command-Line Tools..."
+    echo "📥 Downloading official Android Command-Line Tools (v${ANDROID_CMDLINE_TOOLS_VERSION})..."
     CMDLINE_ZIP="/tmp/cmdline-tools.zip"
-    curl -Lo "$CMDLINE_ZIP" "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+    curl -Lo "$CMDLINE_ZIP" "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_CMDLINE_TOOLS_VERSION}_latest.zip"
     
     echo "📂 Extracting command-line tools..."
     rm -rf /tmp/cmdline-tools-temp
@@ -91,28 +115,33 @@ yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 
 
 # 7. Install core SDK components
 echo ""
-echo "⬇️  [4/5] Downloading SDK components (platform-tools, platforms;android-35, build-tools;35.0.0, emulator)..."
+echo "⬇️  [4/5] Downloading SDK components (platform-tools, platforms;android-${ANDROID_COMPILE_SDK}, build-tools;${ANDROID_BUILD_TOOLS}, emulator)..."
 yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
     "platform-tools" \
-    "platforms;android-35" \
-    "build-tools;35.0.0" \
+    "platforms;android-${ANDROID_COMPILE_SDK}" \
+    "build-tools;${ANDROID_BUILD_TOOLS}" \
     "emulator"
 
-echo ""
-echo "📱 [5/5] Downloading emulator system image (Android 34 Google APIs x86_64)..."
-yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-    "system-images;android-34;google_apis;x86_64"
+# 8. Install emulator system image and create AVD (optional)
+if [ "$INSTALL_EMULATOR" = "true" ]; then
+    echo ""
+    echo "📱 [5/5] Downloading emulator system image (Android $ANDROID_EMULATOR_API Google APIs x86_64)..."
+    yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+        "system-images;android-${ANDROID_EMULATOR_API};google_apis;x86_64"
 
-# Create default AVD if not present
-AVD_NAME="Pixel_6_API_34"
-AVD_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
-if ! "$ANDROID_HOME/emulator/emulator" -list-avds 2>/dev/null | grep -q "$AVD_NAME"; then
-    echo "📱 Creating virtual device '$AVD_NAME'..."
-    echo "no" | "$AVD_MANAGER" create avd -n "$AVD_NAME" -k "system-images;android-34;google_apis;x86_64" --device "pixel_6" --force
-    echo "✅ Virtual device '$AVD_NAME' created."
+    # Create default AVD if not present
+    AVD_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
+    if ! "$ANDROID_HOME/emulator/emulator" -list-avds 2>/dev/null | grep -q "$AVD_NAME"; then
+        echo "📱 Creating virtual device '$AVD_NAME'..."
+        echo "no" | "$AVD_MANAGER" create avd -n "$AVD_NAME" -k "system-images;android-${ANDROID_EMULATOR_API};google_apis;x86_64" --device "$AVD_DEVICE_PROFILE" --force
+        echo "✅ Virtual device '$AVD_NAME' created."
+    fi
+else
+    echo ""
+    echo "📱 [5/5] Skipping emulator system image download (INSTALL_EMULATOR=false)..."
 fi
 
-# 8. Install CLI tools from bin/ into ~/.local/bin
+# 9. Install CLI tools from bin/ into ~/.local/bin
 if [ -d "$SCRIPT_DIR/bin" ]; then
     mkdir -p "$HOME/.local/bin"
     cp -r "$SCRIPT_DIR/bin/"* "$HOME/.local/bin/"
@@ -130,5 +159,9 @@ echo ""
 echo "Available commands in this sandbox:"
 echo "  • Version manager:      change_version [list|remote|<API>]"
 echo "  • Workspace directory:  cd $WORKSPACE_DIR"
-echo "  • Launch emulator:      emulator -avd $AVD_NAME"
+if [ "$INSTALL_EMULATOR" = "true" ]; then
+    echo "  • Launch emulator:      emulator -avd $AVD_NAME"
+else
+    echo "  • Emulator:             Not installed (INSTALL_EMULATOR=false)"
+fi
 echo "======================================================="
