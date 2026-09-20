@@ -120,8 +120,9 @@ show_status() {
     if [ -f ".sdkmanrc" ]; then
         echo ""
         echo "📁 .sdkmanrc configuration detected in current directory:"
-        cat .sdkmanrc | sed 's/^/   • /'
+        sed 's/^/   • /' .sdkmanrc
     fi
+
     echo "======================================================="
 }
 

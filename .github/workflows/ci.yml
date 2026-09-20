@@ -23,6 +23,10 @@ jobs:
     # Uses the standard compute allocation (2 vCPU, 7 GB RAM) with minimal start-up overhead.
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      LC_ALL: C.UTF-8
+      LANG: C.UTF-8
+
 
     steps:
       - name: Checkout repository
