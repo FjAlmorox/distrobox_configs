@@ -21,7 +21,7 @@ This guide defines the mandatory 5-phase process that any AI agent must strictly
 #### 2. Architecture & Scope Optimization
 Actively guide the user to refine and optimize the container scope for maximum efficiency, fast provisioning, and zero unnecessary bloat:
 * **Scope Definition**: Clarify if the sandbox is **lean/specialized** (minimal dependencies, rapid spin-up) or **generalist/battery-included** (full developer toolchain, compilers, native C headers).
-* **Container Name**: Mandatory convention `<tech>-dev` (e.g., `python-dev`, `rust-dev`, `go-dev`, `node-dev`).
+* **Container Name**: Kebab-case identifier matching the purpose, stack, or distro (e.g. `python-dev`, `rust-dev` for development environments, or `kubernetes`, `ubuntu-test`, `ansible-lab` for tools and testbeds). No rigid suffix required.
 * **Base Image**: `${DISTROBOX_BASE_IMAGE:-registry.fedoraproject.org/fedora-toolbox:${FEDORA_VERSION:-44}}` (default) or a specific distribution if technically required.
 * **Version Management**: System packages vs dedicated runtime manager (`change_version` integration).
 * **Initial Default Version**: Latest stable vs current LTS.
@@ -40,9 +40,9 @@ Actively guide the user to refine and optimize the container scope for maximum e
 Add the new container section to [`distrobox.ini`](../../distrobox.ini) complying with standard parameterized defaults:
 
 ```ini
-[<name>-dev]
+[<name>]
 image="${DISTROBOX_BASE_IMAGE:-registry.fedoraproject.org/fedora-toolbox:${FEDORA_VERSION:-44}}"
-home="${DISTROBOX_HOMES_DIR:-${HOME}/.local/share/distrobox-homes}/<name>-dev"
+home="${DISTROBOX_HOMES_DIR:-${HOME}/.local/share/distrobox-homes}/<name>"
 volume="${WORKSPACE_DIR:-${HOME}/Workspace}:${WORKSPACE_DIR:-${HOME}/Workspace}:rw"
 additional_flags="${DISTROBOX_ADDITIONAL_FLAGS:---device /dev/kvm --device /dev/dri}"
 init=false
@@ -53,11 +53,11 @@ root=false
 
 ---
 
-### Phase 3: Environment Directory Creation (`<name>-dev/`)
+### Phase 3: Environment Directory Creation (`<name>/`)
 Generate the modular subfolder structure:
 
 ```text
-<name>-dev/
+<name>/
 ├── setup.sh            # Internal container provisioning script
 ├── bin/
 │   └── change_version  # Unified runtime version manager (if multi-version runtime)

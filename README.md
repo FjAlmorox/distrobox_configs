@@ -272,18 +272,17 @@ To maintain a consistent experience across containers, any sandbox managing mult
 
 ## ➕ How to Add a New Environment
 
-Thanks to the centralized host architecture, adding a new environment (e.g. `rust-dev`, `python-dev`, etc.) requires only 4 steps:
+Thanks to the centralized host architecture, adding a new environment (e.g. `python-dev`, `kubernetes`, `ubuntu-test`, etc.) requires only 4 steps:
 
 1. **Add entry** to [`distrobox.ini`](./distrobox.ini).
-2. **Create directory** named after the container (`<name>-dev/`):
+2. **Create directory** named after the container (`<name>/`):
    * `setup.sh`: Unattended provisioning script (packages and dependencies).
    * `bin/`: *(Optional)* CLI tools copied to `$HOME/.local/bin/` (e.g. `change_version`).
    * `README.md`: Environment-specific documentation.
 3. **Link new environment** in the table of this `README.md`.
-4. **Verify permissions and register in Git**:
-   * Ensure execution permissions: `chmod +x <name>-dev/setup.sh <name>-dev/bin/*`
-   * Validate syntax: `bash -n <name>-dev/setup.sh <name>-dev/bin/*`
-   * Add to version control: `git add <name>-dev/ distrobox.ini README.md`
+4. **Verify and register in Git**:
+   * Run automated audit: `./tests/validate-sandboxes.sh`
+   * Add to version control: `git add <name>/ distrobox.ini README.md`
    * Confirm status with `git status`.
 
 > *Note: You do NOT need to create any `create.sh` or `enter.sh` scripts inside environment folders; root orchestration scripts manage any environment automatically.*

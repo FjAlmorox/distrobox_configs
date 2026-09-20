@@ -16,7 +16,7 @@ Act as a **Senior Linux Systems and DevOps Engineer** specialized in **Distrobox
 
 1. **Total `$HOME` Isolation**:
    Each container MUST have its own isolated home directory at:
-   `${DISTROBOX_HOMES_DIR:-~/.local/share/distrobox-homes}/<name>-dev`
+   `${DISTROBOX_HOMES_DIR:-~/.local/share/distrobox-homes}/<name>`
    NEVER mount or share the real host `$HOME`.
 2. **Shared Workspace**:
    The host `${WORKSPACE_DIR:-${HOME}/Workspace}` is always transparently mounted at the identical absolute path:
@@ -29,7 +29,7 @@ Act as a **Senior Linux Systems and DevOps Engineer** specialized in **Distrobox
      * [`distrobox.ini`](./distrobox.ini) is the **single source of truth** for images, flags, and volume mounts.
      * [`create.sh`](./create.sh) and [`enter.sh`](./enter.sh) at the root manage any environment interactively or via CLI arguments.
      * **FORBIDDEN: Never duplicate `create.sh` or `enter.sh` inside environment subfolders.**
-   * **Subfolder Level (`<name>-dev/`)**: Internal container configuration.
+   * **Subfolder Level (`<name>/`)**: Internal container configuration.
      * `setup.sh`: Internal provisioning script (executed once inside the container).
      * `bin/`: CLI commands installed automatically to `$HOME/.local/bin/` (without `.sh` extension).
      * `README.md`: Environment-specific technical documentation.
@@ -37,7 +37,7 @@ Act as a **Senior Linux Systems and DevOps Engineer** specialized in **Distrobox
    If an environment manages multiple runtime or SDK versions, it MUST provide `bin/change_version` complying with the unified contract (see [`.agents/skills/version-manager/SKILL.md`](./.agents/skills/version-manager/SKILL.md)).
 6. **Git Standards and Script Integrity**:
    * **Executable Bit**: All scripts (`.sh` or commands in `bin/`) MUST have execution permissions (`chmod +x`) before being committed to Git (mode `100755`).
-   * **Unix LF Line Endings**: All scripts and commands must use Unix line endings (`LF`), enforced via `.gitattributes` (`*.sh`, `create.sh`, `enter.sh`, `*/bin/*`, `*-dev/bin/*`) and `.editorconfig`.
+   * **Unix LF Line Endings**: All scripts and commands must use Unix line endings (`LF`), enforced via `.gitattributes` (`*.sh`, `create.sh`, `enter.sh`, `*/bin/*`, `tests/*`) and `.editorconfig`.
    * **Zero Git Pollution**: `.gitignore` must be strictly respected. NEVER commit caches, IDE settings (`.idea/`, `.vscode/`), logs, or container homes (`.local/share/distrobox-homes/`).
 7. **Privacy Shielding and Zero Leaks**:
    * **No Personal Data**: NEVER hardcode host usernames, absolute paths like `/home/<user>`, private project names, or user identities in any file (`.ini`, `.sh`, `.md`, etc.).
@@ -60,7 +60,7 @@ Act as a **Senior Linux Systems and DevOps Engineer** specialized in **Distrobox
 Every AI agent MUST follow this protocol before suggesting or executing any version control operations:
 
 1. **Branching & CI Strategy**:
-   * **Feature Branches**: Develop new sandboxes and features in dedicated branches (`feature/<name>-dev` or `fix/<topic>`).
+   * **Feature Branches**: Develop new sandboxes and features in dedicated branches (`feature/<name>` or `fix/<topic>`).
    * **Resource-Optimized CI Triggers**: GitHub Actions runs exclusively on `push` to `main` and `pull_request` targeting `main`. Working branches do not consume CI minutes until ready for review/merge.
 2. **Before a Commit (`git commit`)**:
    * Check staged files: `git status` (no unexpected files or pollution).
@@ -104,10 +104,10 @@ AI agents MUST consult and adhere to these specialized runbooks when performing 
 A task creating or modifying a sandbox is considered complete ONLY if:
 1. The container is declared in [`distrobox.ini`](./distrobox.ini).
 2. [`./create.sh`](./create.sh) and [`./enter.sh`](./enter.sh) detect and operate with it automatically.
-3. No duplicate `create.sh` or `enter.sh` exists inside `<name>-dev/`.
-4. All user CLI commands reside in `<name>-dev/bin/` without `.sh` extension.
+3. No duplicate `create.sh` or `enter.sh` exists inside `<name>/`.
+4. All user CLI commands reside in `<name>/bin/` without `.sh` extension.
 5. `setup.sh` is 100% non-interactive, idempotent, transfers `bin/*` to `~/.local/bin/`, and complies with the Conditional GUI / Emulator Pattern when applicable.
-6. Environment documentation (`<name>-dev/README.md`) and the main [`README.md`](./README.md) are updated.
+6. Environment documentation (`<name>/README.md`) and the main [`README.md`](./README.md) are updated.
 7. The repository cleanly passes `./tests/validate-sandboxes.sh` (validating directory structure, manifest declaration, executable permissions `100755`, LF line endings, and syntax `bash -n`).
 8. The repository cleanly passes mandatory pre-commit and pre-push checks (`./.githooks/pre-commit` and `./.githooks/pre-push`) with zero personal data, host paths, or leaked credentials, with `--no-verify` strictly prohibited.
 9. All code, scripts, CLI tools, messages, comments, and documentation are strictly written in English.

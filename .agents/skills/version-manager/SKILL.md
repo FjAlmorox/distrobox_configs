@@ -5,7 +5,7 @@ description: Unified specification, command contract, and implementation guide f
 
 # 🔄 Skill: Version Manager Contract (`change_version`)
 
-Every sandbox environment that manages multiple runtime or SDK versions (e.g. Java, Python, Node, Android SDKs) MUST provide an executable command at `<name>-dev/bin/change_version`.
+Every sandbox environment that manages multiple runtime or SDK versions (e.g. Java, Python, Node, Android SDKs) MUST provide an executable command at `<name>/bin/change_version`.
 
 This document specifies the user interface contract, argument handling, and behavioral requirements for any `change_version` implementation.
 
@@ -31,7 +31,7 @@ All `change_version` scripts must adhere to the following interface:
 
 1. **Naming and Permissions**:
    * File name: strictly `change_version` (NEVER `change_version.sh`).
-   * Location: `<name>-dev/bin/change_version` in Git.
+   * Location: `<name>/bin/change_version` in Git.
    * Target inside container: `$HOME/.local/bin/change_version`.
    * Execution permissions: `chmod +x` (Git mode `100755`).
    * Line endings: Unix `LF` enforced.

@@ -94,17 +94,9 @@ if [ $ERRORS_FOUND -eq 0 ]; then
 fi
 
 # ---------------------------------------------------------
-# 3. Discover and Validate All Sandboxes (*-dev/)
+# 3. Discover and Validate All Sandboxes
 # ---------------------------------------------------------
-echo -e "\n${BLUE}3. Validating development sandboxes (*-dev/)...${NC}"
-SANDBOX_DIRS=()
-while IFS= read -r -d '' d; do
-    SANDBOX_DIRS+=("$d")
-done < <(find "$ROOT_DIR" -maxdepth 1 -type d -name "*-dev" -print0 | sort -z)
-
-if [ ${#SANDBOX_DIRS[@]} -eq 0 ]; then
-    error "No sandbox directories (*-dev) found in repository root!"
-fi
+echo -e "\n${BLUE}3. Discovering and validating sandboxes...${NC}"
 
 DISTROBOX_INI="$ROOT_DIR/distrobox.ini"
 README_FILE="$ROOT_DIR/README.md"
@@ -117,16 +109,47 @@ if [ ! -f "$README_FILE" ]; then
     error "Missing root catalog: README.md"
 fi
 
-for sandbox_dir in "${SANDBOX_DIRS[@]}"; do
-    sandbox_name="$(basename "$sandbox_dir")"
+# Discover sandboxes from distrobox.ini (the single source of truth)
+mapfile -t INI_BOXES < <(grep -E '^\[[a-zA-Z0-9_-]+\]$' "$DISTROBOX_INI" | tr -d '[]' | sort -u)
+
+if [ ${#INI_BOXES[@]} -eq 0 ]; then
+    error "No sandbox definitions found in $DISTROBOX_INI!"
+fi
+
+# Also discover any top-level directory that contains a setup.sh (excluding system/tool directories)
+DISCOVERED_DIRS=()
+while IFS= read -r -d '' setup_file; do
+    dir_path="$(dirname "$setup_file")"
+    dir_name="$(basename "$dir_path")"
+    case "$dir_name" in
+        .git|.github|.githooks|.agents|tests)
+            ;;
+        *)
+            DISCOVERED_DIRS+=("$dir_name")
+            ;;
+    esac
+done < <(find "$ROOT_DIR" -maxdepth 2 -mindepth 2 -name "setup.sh" -print0 | sort -z)
+
+# Merge and deduplicate all sandbox candidate names
+ALL_BOX_NAMES=()
+mapfile -t ALL_BOX_NAMES < <(printf "%s\n" "${INI_BOXES[@]}" "${DISCOVERED_DIRS[@]}" | sort -u)
+
+for sandbox_name in "${ALL_BOX_NAMES[@]}"; do
+    sandbox_dir="$ROOT_DIR/$sandbox_name"
     echo -e "   Checking sandbox: ${BLUE}$sandbox_name${NC}..."
 
     # a. Check declaration in distrobox.ini
     if ! grep -q "^\[$sandbox_name\]" "$DISTROBOX_INI" 2>/dev/null; then
-        error "Sandbox '$sandbox_name' is missing section [$sandbox_name] in distrobox.ini"
+        error "Directory '$sandbox_name/' exists with setup.sh but is missing section [$sandbox_name] in distrobox.ini"
     fi
 
-    # b. Check required setup.sh
+    # b. Check that the sandbox directory exists
+    if [ ! -d "$sandbox_dir" ]; then
+        error "Sandbox section [$sandbox_name] is declared in distrobox.ini but directory '$sandbox_name/' does not exist!"
+        continue
+    fi
+
+    # c. Check required setup.sh
     setup_script="$sandbox_dir/setup.sh"
     if [ ! -f "$setup_script" ]; then
         error "Sandbox '$sandbox_name' is missing setup.sh"
@@ -140,18 +163,18 @@ for sandbox_dir in "${SANDBOX_DIRS[@]}"; do
         ALL_SCRIPTS+=("$setup_script")
     fi
 
-    # c. Check required README.md
+    # d. Check required README.md
     sandbox_readme="$sandbox_dir/README.md"
     if [ ! -f "$sandbox_readme" ] || [ ! -s "$sandbox_readme" ]; then
         error "Sandbox '$sandbox_name' is missing or has empty README.md"
     fi
 
-    # d. Check anti-duplication boundary (forbidden create.sh / enter.sh)
+    # e. Check anti-duplication boundary (forbidden create.sh / enter.sh)
     if [ -f "$sandbox_dir/create.sh" ] || [ -f "$sandbox_dir/enter.sh" ]; then
         error "Architectural Invariant Violation: Found duplicate create.sh or enter.sh inside $sandbox_name/"
     fi
 
-    # e. Check bin/ directory commands if present
+    # f. Check bin/ directory commands if present
     bin_dir="$sandbox_dir/bin"
     if [ -d "$bin_dir" ]; then
         while IFS= read -r -d '' cmd_file; do
@@ -173,24 +196,14 @@ for sandbox_dir in "${SANDBOX_DIRS[@]}"; do
         done < <(find "$bin_dir" -maxdepth 1 -type f -print0)
     fi
 
-    # f. Check registration in root README.md
+    # g. Check registration in root README.md
     if ! grep -q "$sandbox_name" "$README_FILE" 2>/dev/null; then
         warn "Sandbox '$sandbox_name' is not explicitly referenced in root README.md"
     fi
 done
 
-# ---------------------------------------------------------
-# 4. Check for Orphaned Sections in distrobox.ini
-# ---------------------------------------------------------
-echo -e "\n${BLUE}4. Checking for orphaned sections in distrobox.ini...${NC}"
-INI_SECTIONS=$(grep -E "^\[.*-dev\]" "$DISTROBOX_INI" | tr -d '[]' || true)
-for section in $INI_SECTIONS; do
-    if [ ! -d "$ROOT_DIR/$section" ]; then
-        error "Section [$section] exists in distrobox.ini but directory $section/ does not exist!"
-    fi
-done
 if [ $ERRORS_FOUND -eq 0 ]; then
-    success "All sections in distrobox.ini match existing sandbox directories."
+    success "All declared sandboxes and directories are synchronized and structurally sound."
 fi
 
 # ---------------------------------------------------------
