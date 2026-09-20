@@ -72,6 +72,10 @@ Every AI agent MUST follow this protocol before suggesting or executing any vers
    * Run security audit across the entire repository: `./.githooks/pre-push` (or `./.githooks/pre-commit --all`).
    * Verify clean commit history to push (`git log -n 5 --stat`).
    * NEVER use `git push --no-verify`.
+4. **Pull Request Protocol (`gh pr create` or Web)**:
+   * **Mandatory Template**: Every PR targeting `main` must complete all sections of [`.github/pull_request_template.md`](./.github/pull_request_template.md).
+   * **DoD Verification**: All checklist items in the template must be verified and checked before requesting review or merging.
+   * **Workflow State**: When automated CI verification is required for the PR, ensure the workflow is active (`gh workflow enable ci.yml`).
 
 ---
 
@@ -154,6 +158,7 @@ Generate modular structure:
 * Stage new files in Git:
   `git add <name>-dev/ distrobox.ini README.md AGENTS.md`
 * Confirm with `git status` that all files and scripts are properly staged without unintended files.
+* If opening a Pull Request: complete all sections of [`.github/pull_request_template.md`](./.github/pull_request_template.md) ensuring all checklist items are validated.
 
 ---
 
@@ -186,3 +191,4 @@ A task creating or modifying a sandbox is considered complete ONLY if:
 8. All new scripts have executable permissions (`chmod +x` / mode `100755`), are covered by `.gitattributes` (enforcing LF), and are properly verified for Git.
 9. The repository cleanly passes mandatory pre-commit and pre-push checks (`./.githooks/pre-commit` and `./.githooks/pre-push`) with zero personal data, host paths, or leaked credentials, with `--no-verify` strictly prohibited.
 10. All code, scripts, CLI tools, messages, comments, and documentation are strictly written in English.
+11. If submitting via Pull Request, [`.github/pull_request_template.md`](./.github/pull_request_template.md) is completely filled out with all checklist items verified.

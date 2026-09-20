@@ -107,6 +107,11 @@ Every push to `main` and every pull request targeting `main` is automatically ve
   * **Security & Privacy Audit**: Executes `./.githooks/pre-commit --all`.
   * **ShellCheck Linting**: Validates static bash quality and best practices with zero warnings.
   * **Gitleaks Secret Scanning**: Analyzes git history for potential secrets and credentials.
+* **Workflow State Control**: The automated CI workflow can be paused or resumed anytime using the GitHub CLI:
+  ```bash
+  gh workflow disable ci.yml  # Pause automated CI runs
+  gh workflow enable ci.yml   # Resume automated CI runs
+  ```
 
 > [!TIP]
 > **Recommended Server-Side Setting**: For total defense-in-depth, enable **Secret scanning** and **Push protection** in your GitHub repository under *Settings* ➔ *Code security and analysis*. This blocks any push containing known tokens directly on GitHub's servers before the commits are accepted.
@@ -120,6 +125,12 @@ Every push to `main` and every pull request targeting `main` is automatically ve
 ### 5. Normalization and Execution Permissions (`.gitattributes` & `.editorconfig`)
 * **Enforce Unix `LF` Line Endings**: Prevents Windows checkouts or edits from corrupting shell scripts (`*.sh`, `create.sh`, `enter.sh`, `*/bin/*`, `*-dev/bin/*`).
 * **Preserve Executable Permissions (`100755`)**: Git explicitly tracks execution bits so all scripts remain executable upon checkout.
+
+### 6. Pull Request Standards & Template (`.github/pull_request_template.md`)
+All contributions and new environment branches submitted to `main` must use the repository's standardized Pull Request template:
+* **Environment Scope**: Declares container name, base image, pre-installed toolchains, and CLI commands.
+* **Testing Steps**: Documents manual verification commands (`./create.sh`, `./enter.sh`).
+* **Interactive DoD Checklist**: Requires interactive confirmation of all Definition of Done invariants (clean static checks, executable bits, zero privacy leaks) before merge.
 
 
 ---
