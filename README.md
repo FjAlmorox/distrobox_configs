@@ -1,0 +1,238 @@
+# 📦 Distrobox Configs - Isolated Development Environments
+
+Central repository to manage development environments and containers on **Fedora** using **Distrobox** and **Podman**.
+
+---
+
+## 🏛️ Philosophy and Container Standards
+
+Each environment configured in this repository adheres to the following directives:
+
+1. **Total `$HOME` Isolation**:
+   Each container maintains its own isolated home directory at:
+   `~/.local/share/distrobox-homes/<environment-name>`
+   This prevents tool configurations, caches, or SDKs (such as SDKMAN, Gradle, or Android SDK) from polluting or conflicting with the host system or other containers.
+2. **Shared Workspace**:
+   The entire host `$HOME/Workspace` directory is bidirectionally mounted into the container at the identical absolute path, enabling seamless work across repositories without file duplication.
+3. **Hardware Acceleration (GPU & KVM)**:
+   Direct passthrough of `/dev/dri` (graphical acceleration for emulators and desktop GUIs) and `/dev/kvm` (hardware virtualization).
+4. **Strict Boundary between Host and Container**:
+   * **Root Level (Host)**: Centralized orchestration scripts (`create.sh`, `enter.sh`), declarative manifest (`distrobox.ini`), and Git configuration files (`.gitignore`, `.gitattributes`, `.editorconfig`).
+   * **Subdirectory Level (Container)**: Everything belonging to that specific sandbox (`setup.sh`, `bin/`, `README.md`).
+
+---
+
+## 📁 Repository Structure
+
+```text
+distrobox_configs/
+├── .editorconfig               # Indentation, UTF-8, and LF normalization across editors
+├── .env.example                # Public and generic environment variables template
+├── .gitattributes              # Strict protection: enforces LF for scripts and CLI tools
+├── .githooks/                  # Versioned Git hooks in the repository
+│   ├── pre-commit              # Local scanner: blocks personal data and secret leaks on commit
+│   └── pre-push                # Global auditor: blocks pushes with secrets or private paths
+├── .gitignore                  # Exclusions for secrets, temporary files, IDEs, and homes
+├── AGENTS.md                   # Operational guidelines and protocol for AI Agents
+├── LICENSE                     # MIT Open Source License
+├── README.md                   # General documentation and environment catalog
+├── create.sh                   # [Host] Interactive/CLI script to create sandboxes
+├── distrobox.ini               # [Host] Declarative manifest (single source of truth)
+├── enter.sh                    # [Host] Interactive/CLI script to enter sandboxes
+│
+├── android-dev/                # [Environment] Android Development
+│   ├── setup.sh                # Internal bootstrap (run once inside sandbox)
+│   ├── bin/                    # CLI commands installed to ~/.local/bin/
+│   │   └── change_version      # SDK and emulator version manager
+│   └── README.md               # Android technical documentation
+│
+└── java-dev/                   # [Environment] Java / Kotlin / JVM Development
+    ├── setup.sh                # Internal bootstrap (run once inside sandbox)
+    ├── bin/                    # CLI commands installed to ~/.local/bin/
+    │   └── change_version      # JDK, GraalVM, and SDK version manager
+    └── README.md               # Java/JVM technical documentation
+```
+
+---
+
+## 🛡️ Version Control, Security, and Privacy
+
+This repository implements a **defense-in-depth** strategy to ensure that no personal data, private paths, or secrets can ever be published:
+
+### 1. Automated Pre-Commit Scanner (`.githooks/pre-commit`)
+Git automatically invokes this hook before accepting any `git commit`:
+* **Blocks personal absolute paths**: Detects and rejects paths matching `/home/<user>/...`, enforcing portable variables (`${HOME}` or `$HOME`).
+* **Blocks host local username**: Dynamically resolves the developer's host username and prevents it from leaking into scripts or documentation.
+* **Blocks cryptographic keys and certificates**: Rejects RSA, OpenSSH, PEM private keys, and certificates.
+* **Blocks tokens and API keys**: Detects patterns for GitHub tokens, AWS access keys, and Bearer tokens.
+* **Blocks plaintext credentials**: Rejects password or secret assignments in code.
+
+### 2. Full Pre-Push Audit (`.githooks/pre-push`)
+Git automatically invokes this hook before pushing changes to any remote repository (`git push`):
+* Executes the security scanner in global mode (`--all`) across all tracked files.
+* Guarantees that no prior commit or unnoticed file leaks sensitive data before reaching the remote.
+* **Strict Bypass Prohibition**: Using the `--no-verify` flag on commits or pushes is strictly prohibited.
+
+**To enable the hooks on any newly cloned machine:**
+```bash
+git config core.hooksPath .githooks
+```
+*(Pre-configured by default in this workspace)*.
+
+**To run a manual security audit at any time:**
+```bash
+# Validate staged changes:
+./.githooks/pre-commit
+
+# Validate the entire repository (simulating pre-push):
+./.githooks/pre-push
+```
+
+### 3. Strict Exclusion Shielding (`.gitignore`)
+* **Secrets and Environments**: Blocks `.env`, `*.env`, certificates, private keys (`*.key`, `*.pem`, `id_rsa*`, etc.), and Android keystores (`*.keystore`, `*.jks`, `keystore.properties`, `local.properties`).
+* **Safe Local Overrides**: Enables developers to maintain private local overrides (`distrobox.local.ini`, `*.local`, `local/`) without any risk of committing them.
+* **Distrobox Isolation**: Prevents accidental tracking of isolated home directories (`distrobox-homes/`).
+
+### 4. Normalization and Execution Permissions (`.gitattributes` & `.editorconfig`)
+* **Enforce Unix `LF` Line Endings**: Prevents Windows checkouts or edits from corrupting shell scripts (`*.sh`, `create.sh`, `enter.sh`, `*/bin/*`, `*-dev/bin/*`).
+* **Preserve Executable Permissions (`100755`)**: Git explicitly tracks execution bits so all scripts remain executable upon checkout.
+
+---
+
+## 🚀 Available Environments
+
+| Environment | Directory | Base Image | Focus | Documentation |
+| :--- | :--- | :--- | :--- | :--- |
+| **`android-dev`** | [`./android-dev/`](./android-dev/) | `fedora-toolbox:41` | Android SDK, x86_64 Emulator, AVDs, ADB, OpenJDK 21 | [View details](./android-dev/README.md) |
+| **`java-dev`** | [`./java-dev/`](./java-dev/) | `fedora-toolbox:41` | Java 21, Kotlin, SDKMAN, Gradle, Maven, GraalVM tools, Desktop GUI | [View details](./java-dev/README.md) |
+
+---
+
+## 🎛️ Host Operations (`create.sh` & `enter.sh`)
+
+Root-level scripts manage any repository environment in a unified way:
+
+```bash
+# 1. Create a specific container:
+./create.sh android-dev
+./create.sh java-dev
+
+# Or run without arguments for an interactive menu:
+./create.sh
+
+# 2. Enter a container (positions you directly in your Workspace):
+./enter.sh android-dev
+./enter.sh java-dev
+
+# Or interactive menu:
+./enter.sh
+```
+
+---
+
+## 📋 Global Manifest Management (`distrobox.ini`)
+
+You can create or remove all containers simultaneously using the central manifest [`distrobox.ini`](./distrobox.ini):
+
+```bash
+# Create all containers defined in the manifest
+distrobox assemble create --file ./distrobox.ini
+
+# Remove all containers
+distrobox assemble rm --file ./distrobox.ini
+```
+
+---
+
+## 🛠️ General Distrobox Commands
+
+### Container Lifecycle
+```bash
+# List all containers and their current status
+distrobox list
+
+# Enter a container directly
+distrobox enter <container-name>
+
+# Stop a container to release RAM and CPU resources
+distrobox stop <container-name>
+
+# Remove a container (preserves isolated home and workspace intact)
+distrobox rm <container-name>
+
+# Force removal of a running container
+distrobox rm -f <container-name>
+```
+
+### Host System Integration (`distrobox-export`)
+Distrobox allows exporting tools and GUI apps from containers directly into the host system without manual terminal access:
+
+```bash
+# 1. Export a GUI application to the host application menu:
+distrobox-export --app <app_name>
+
+# 2. Export a CLI binary to host terminal execution:
+distrobox-export --bin /path/to/binary --export-path ~/.local/bin
+
+# 3. Delete an exported binary or app:
+distrobox-export --delete --app <app_name>
+distrobox-export --delete --bin /path/to/binary --export-path ~/.local/bin
+```
+
+### Accessing Host Files from within Containers
+If you occasionally need to access host files outside your Workspace or isolated home, the host filesystem is mounted in read/write mode at:
+```bash
+/run/host
+```
+*(For example, `/run/host/etc/` or `/run/host/home/$USER/`)*.
+
+---
+
+## 🔄 Version Management Standard (`change_version`)
+
+To maintain a consistent experience across containers, any sandbox managing multiple SDK or runtime versions implements **`change_version`**:
+
+* Automatically copied to `$HOME/.local/bin/change_version` during `setup.sh`.
+* Directly executable from any directory inside the container without paths or prefixes.
+
+### Unified Command Contract
+
+| Command | Description |
+| :--- | :--- |
+| `change_version` *(or `status`)* | Shows current active version and complementary tools status. |
+| `change_version list` *(or `-l`)* | Lists versions installed locally in the container. |
+| `change_version remote` *(or `-r`)* | Lists recommended versions available online. |
+| `change_version install <ver> [opts]` | Downloads and installs a version. |
+| `change_version set <ver> [opts]` | Activates specified version (downloads if missing). |
+| `change_version <ver> [opts]` | Quick shortcut equivalent to `change_version set <ver>`. |
+
+### Behavior by Sandbox
+
+* **In `android-dev`**:
+  * Manages Android SDK Platform versions (e.g. `34`, `35`) and matching Build-tools.
+  * Supports `-e` / `--with-emulator` flag to download x86_64 system images and create AVDs.
+* **In `java-dev`**:
+  * Manages Java versions (e.g. `17`, `21`, `25`) powered by SDKMAN.
+  * Defaults to **Eclipse Temurin LTS**. Use `-g` / `--graalvm` for **GraalVM CE**.
+  * Use `-s` / `--session` to switch versions for current terminal session only (`sdk use`).
+  * Displays cross-tool status for Gradle, Maven, Kotlin, and `.sdkmanrc` files.
+
+---
+
+## ➕ How to Add a New Environment
+
+Thanks to the centralized host architecture, adding a new environment (e.g. `rust-dev`, `python-dev`, etc.) requires only 4 steps:
+
+1. **Add entry** to [`distrobox.ini`](./distrobox.ini).
+2. **Create directory** named after the container (`<name>-dev/`):
+   * `setup.sh`: Unattended provisioning script (packages and dependencies).
+   * `bin/`: *(Optional)* CLI tools copied to `$HOME/.local/bin/` (e.g. `change_version`).
+   * `README.md`: Environment-specific documentation.
+3. **Link new environment** in the table of this `README.md`.
+4. **Verify permissions and register in Git**:
+   * Ensure execution permissions: `chmod +x <name>-dev/setup.sh <name>-dev/bin/*`
+   * Validate syntax: `bash -n <name>-dev/setup.sh <name>-dev/bin/*`
+   * Add to version control: `git add <name>-dev/ distrobox.ini README.md`
+   * Confirm status with `git status`.
+
+> *Note: You do NOT need to create any `create.sh` or `enter.sh` scripts inside environment folders; root orchestration scripts manage any environment automatically.*

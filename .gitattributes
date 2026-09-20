@@ -1,0 +1,17 @@
+# Automatically normalize line endings
+* text=auto
+
+# Bash scripts and executables: always enforce LF (Linux) to prevent issues when cloned on Windows
+*.sh text eol=lf
+create.sh text eol=lf
+enter.sh text eol=lf
+*/bin/* text eol=lf
+*-dev/bin/* text eol=lf
+.githooks/* text eol=lf
+
+# Text and configuration files
+*.md text
+*.ini text
+.gitignore text
+.gitattributes text
+LICENSE text

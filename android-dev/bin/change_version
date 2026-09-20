@@ -1,0 +1,267 @@
+#!/usr/bin/env bash
+set -e
+
+# ==============================================================================
+# change_version - Unified version manager for Android Sandbox (android-dev)
+# ==============================================================================
+
+show_help() {
+    echo "======================================================="
+    echo "  🔄 change_version (android-dev)"
+    echo "======================================================="
+    echo "Usage:"
+    echo "  change_version                      Show current status and tools"
+    echo "  change_version list, -l             List locally installed versions"
+    echo "  change_version remote, -r           List versions available online"
+    echo "  change_version install <API> [-e]   Install SDK version (and emulator)"
+    echo "  change_version set <API> [-e]       Activate a version (installs if missing)"
+    echo "  change_version <API> [-e]           Shortcut for 'change_version set <API>'"
+    echo ""
+    echo "Options:"
+    echo "  -e, --with-emulator                 Download x86_64 image and create AVD"
+    echo "======================================================="
+}
+
+if [[ "$1" == "help" || "$1" == "--help" || "$1" == "-h" ]]; then
+    show_help
+    exit 0
+fi
+
+if [ -z "$ANDROID_HOME" ]; then
+    if [ -d "$HOME/Android/Sdk" ]; then
+        export ANDROID_HOME="$HOME/Android/Sdk"
+    else
+        echo "❌ Error: ANDROID_HOME not found. Run setup.sh first."
+        exit 1
+    fi
+fi
+
+export ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$HOME/.config/.android/avd}"
+SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+AVDMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
+EMULATOR="$ANDROID_HOME/emulator/emulator"
+
+# Function to map API level to default Build-Tools
+get_build_tools() {
+    local api="$1"
+    case "$api" in
+        36) echo "36.0.0" ;;
+        35) echo "35.0.0" ;;
+        34) echo "34.0.0" ;;
+        33) echo "33.0.3" ;;
+        32) echo "32.0.0" ;;
+        31) echo "31.0.0" ;;
+        30) echo "30.0.3" ;;
+        *)  echo "${api}.0.0" ;;
+    esac
+}
+
+show_status() {
+    echo "======================================================="
+    echo "  📱 Android Environment Status (android-dev)"
+    echo "======================================================="
+    
+    echo "📦 Installed Android Platforms:"
+    if [ -d "$ANDROID_HOME/platforms" ] && [ "$(ls -A "$ANDROID_HOME/platforms" 2>/dev/null)" ]; then
+        for p in "$ANDROID_HOME/platforms"/android-*; do
+            [ -d "$p" ] || continue
+            echo "   • $(basename "$p")"
+        done
+    else
+        echo "   (No platforms installed)"
+    fi
+
+    echo ""
+    echo "🛠️  Installed Build-Tools:"
+    if [ -d "$ANDROID_HOME/build-tools" ] && [ "$(ls -A "$ANDROID_HOME/build-tools" 2>/dev/null)" ]; then
+        for b in "$ANDROID_HOME/build-tools"/*; do
+            [ -d "$b" ] || continue
+            echo "   • $(basename "$b")"
+        done
+    else
+        echo "   (No build-tools installed)"
+    fi
+
+    echo ""
+    echo "📱 Android Virtual Devices (AVDs):"
+    if [ -x "$EMULATOR" ]; then
+        local avds
+        avds=$("$EMULATOR" -list-avds 2>/dev/null || true)
+        if [ -n "$avds" ]; then
+            echo "$avds" | sed 's/^/   • /'
+        else
+            echo "   (No AVDs created)"
+        fi
+    else
+        echo "   (Emulator not installed)"
+    fi
+
+    echo ""
+    echo "☕ Associated Java Version:"
+    if command -v java >/dev/null 2>&1; then
+        echo "   • $(java -version 2>&1 | head -n 1)"
+    else
+        echo "   • Java not available in PATH"
+    fi
+
+    # If current directory contains an Android Gradle project, display its configured compileSdk
+    local gradle_file=""
+    if [ -f "$PWD/app/build.gradle.kts" ]; then
+        gradle_file="$PWD/app/build.gradle.kts"
+    elif [ -f "$PWD/build.gradle.kts" ]; then
+        gradle_file="$PWD/build.gradle.kts"
+    elif [ -f "$PWD/app/build.gradle" ]; then
+        gradle_file="$PWD/app/build.gradle"
+    fi
+
+    if [ -n "$gradle_file" ]; then
+        local current_compile_sdk
+        current_compile_sdk=$(grep -E 'compileSdk(Version)?\s*(=|\s)' "$gradle_file" | grep -oE '[0-9]+' | head -n 1 || true)
+        if [ -n "$current_compile_sdk" ]; then
+            echo ""
+            echo "🎯 Current project ($(basename "$PWD")) configured with: compileSdk = $current_compile_sdk"
+        fi
+    fi
+    echo "======================================================="
+}
+
+list_local() {
+    echo "======================================================="
+    echo "  📂 Locally Installed Versions (android-dev)"
+    echo "======================================================="
+    echo "Platforms:"
+    if [ -d "$ANDROID_HOME/platforms" ] && [ "$(ls -A "$ANDROID_HOME/platforms" 2>/dev/null)" ]; then
+        for p in "$ANDROID_HOME/platforms"/android-*; do
+            [ -d "$p" ] || continue
+            local api_num
+            api_num=$(basename "$p" | sed 's/android-//')
+            local bt
+            bt=$(get_build_tools "$api_num")
+            echo "  • API $api_num (Platform: $(basename "$p"), Build-tools: $bt)"
+        done
+    else
+        echo "  (No platforms installed)"
+    fi
+    echo "======================================================="
+}
+
+list_remote() {
+    echo "======================================================="
+    echo "  🌐 Available Android SDK Versions"
+    echo "======================================================="
+    echo "  API 35  | Android 15 (Vanilla Ice Cream) [LTS / Recommended]"
+    echo "  API 34  | Android 14 (Upside Down Cake)"
+    echo "  API 33  | Android 13 (Tiramisu)"
+    echo "  API 32  | Android 12L (Sv2)"
+    echo "  API 31  | Android 12 (Snow Cone)"
+    echo "  API 30  | Android 11 (Red Velvet Cake)"
+    echo ""
+    echo "💡 You can install any of them using:"
+    echo "   change_version install <API> [--with-emulator]"
+    echo "======================================================="
+}
+
+install_version() {
+    local target_api="$1"
+    local with_emulator="$2"
+
+    if [ -z "$target_api" ]; then
+        echo "❌ Error: Specify the API level (e.g. change_version install 34)"
+        exit 1
+    fi
+
+    if [ ! -f "$SDKMANAGER" ]; then
+        echo "❌ Error: 'sdkmanager' not found at $SDKMANAGER"
+        exit 1
+    fi
+
+    local build_tools
+    build_tools=$(get_build_tools "$target_api")
+
+    echo "======================================================="
+    echo "  ⬇️  Installing Android SDK Platform $target_api"
+    echo "======================================================="
+    echo "  Platform:    platforms;android-$target_api"
+    echo "  Build-tools: build-tools;$build_tools"
+    echo "======================================================="
+
+    yes | "$SDKMANAGER" "platforms;android-$target_api" "build-tools;$build_tools"
+
+    if [[ "$with_emulator" == "--with-emulator" || "$with_emulator" == "-e" ]]; then
+        local sys_image="system-images;android-$target_api;google_apis;x86_64"
+        echo ""
+        echo "📱 Downloading emulator system image: $sys_image ..."
+        yes | "$SDKMANAGER" "$sys_image"
+
+        local avd_name="Pixel_API_${target_api}"
+        echo "📱 Creating or updating AVD: $avd_name ..."
+        echo "no" | "$AVDMANAGER" create avd -n "$avd_name" -k "$sys_image" --device "pixel_6" --force
+        echo "✅ Virtual device '$avd_name' ready."
+    fi
+
+    echo ""
+    echo "✅ Android API $target_api successfully installed."
+}
+
+set_version() {
+    local target_api="$1"
+    local with_emulator="$2"
+
+    if [ -z "$target_api" ]; then
+        echo "❌ Error: Specify the API level (e.g. change_version set 34)"
+        exit 1
+    fi
+
+    # If not installed, install first
+    if [ ! -d "$ANDROID_HOME/platforms/android-$target_api" ]; then
+        echo "ℹ️ API $target_api is not installed locally. Proceeding with installation..."
+        install_version "$target_api" "$with_emulator"
+    elif [[ "$with_emulator" == "--with-emulator" || "$with_emulator" == "-e" ]]; then
+        install_version "$target_api" "$with_emulator"
+    fi
+
+    echo ""
+    echo "======================================================="
+    echo "  🎯 Active Version: Android API $target_api"
+    echo "======================================================="
+    echo "💡 To configure your project to compile against this version,"
+    echo "   update the respective build.gradle.kts:"
+    echo "       compileSdk = $target_api"
+    echo "       targetSdk = $target_api"
+    echo "======================================================="
+}
+
+# Command routing
+case "$1" in
+    ""|status)
+        show_status
+        ;;
+    list|-l)
+        list_local
+        ;;
+    remote|-r|list-remote)
+        list_remote
+        ;;
+    install)
+        shift
+        install_version "$1" "$2"
+        ;;
+    set|use)
+        shift
+        set_version "$1" "$2"
+        ;;
+    help|-h|--help)
+        show_help
+        ;;
+    *)
+        # If argument is numeric (e.g. change_version 34), treat as "set"
+        if [[ "$1" =~ ^[0-9]+$ ]]; then
+            set_version "$1" "$2"
+        else
+            echo "❌ Unknown command or version: $1"
+            echo ""
+            show_help
+            exit 1
+        fi
+        ;;
+esac

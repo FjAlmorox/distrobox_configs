@@ -1,0 +1,80 @@
+# ==========================================
+# Temporary and OS files
+# ==========================================
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# Editor and IDE configurations
+# ==========================================
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.iml
+.project
+.settings/
+.classpath
+
+# ==========================================
+# Secrets, credentials and private variables
+# ==========================================
+*.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.cert
+*.crt
+id_rsa*
+id_ed25519*
+id_ecdsa*
+*.pub
+*secret*
+*credential*
+*token*
+.netrc
+.npmrc
+.pypirc
+keystore.properties
+local.properties
+
+# ==========================================
+# Local settings and host overrides
+# ==========================================
+*.local
+*.local.*
+distrobox.local.ini
+*.local.sh
+local/
+
+# ==========================================
+# Distrobox and local infrastructure
+# ==========================================
+# Isolated home directories if linked or referenced in workspace
+distrobox-homes/
+*.distrobox/
+.local/share/distrobox-homes/
+
+# ==========================================
+# Logs, crash dumps and temporary files
+# ==========================================
+*.log
+*.tmp
+*.bak
+*.orig
+/scratch/
+core
+vgcore.*
+
+# ==========================================
+# Local desktop exports and artifacts
+# ==========================================
+*.desktop

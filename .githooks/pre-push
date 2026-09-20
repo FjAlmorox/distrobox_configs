@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# .githooks/pre-push
+# Pre-push hook that runs a full security audit across the repository
+# before allowing changes to be pushed to a remote repository.
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+echo "🚀 [Pre-Push Hook] Verifying repository security and integrity before push..."
+"$SCRIPT_DIR/pre-commit" --all

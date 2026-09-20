@@ -1,0 +1,277 @@
+#!/usr/bin/env bash
+set -e
+
+# ==============================================================================
+# change_version - Unified version manager for Java/JVM Sandbox (java-dev)
+# ==============================================================================
+
+show_help() {
+    echo "======================================================="
+    echo "  🔄 change_version (java-dev)"
+    echo "======================================================="
+    echo "Usage:"
+    echo "  change_version                      Show current status and tools"
+    echo "  change_version list, -l             List locally installed versions"
+    echo "  change_version remote, -r           List recommended versions online"
+    echo "  change_version install <ver> [-g]   Install a version (e.g. 17, 21, 21 -g)"
+    echo "  change_version set <ver> [-g] [-s]  Activate a version (installs if missing)"
+    echo "  change_version <ver> [-g]           Shortcut for 'change_version set <ver>'"
+    echo ""
+    echo "Options:"
+    echo "  -g, --graalvm                       Use GraalVM CE instead of Temurin"
+    echo "  -s, --session                       Apply to current shell session only ('sdk use')"
+    echo "======================================================="
+}
+
+if [[ "$1" == "help" || "$1" == "--help" || "$1" == "-h" ]]; then
+    show_help
+    exit 0
+fi
+
+export SDKMAN_DIR="$HOME/.sdkman"
+if [ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]; then
+    # shellcheck source=/dev/null
+    source "$SDKMAN_DIR/bin/sdkman-init.sh"
+else
+    echo "❌ Error: SDKMAN! not found at $SDKMAN_DIR. Run setup.sh first."
+    exit 1
+fi
+
+# Resolve user-friendly version number to SDKMAN candidate identifier
+resolve_identifier() {
+    local ver="$1"
+    local type="$2" # "temurin" (default) or "graalvm"
+
+    # If it already contains a hyphen, assume it is a full identifier (e.g. 21.0.12+1.1-tem)
+    if [[ "$ver" =~ - ]]; then
+        echo "$ver"
+        return
+    fi
+
+    local pattern
+    if [ "$type" == "graalvm" ]; then
+        pattern="\|\s*(${ver}\.[0-9][^|[:space:]]*graalce)"
+    else
+        pattern="\|\s*(${ver}\.[0-9][^|[:space:]]*tem)"
+    fi
+
+    local resolved=""
+    resolved=$(curl -s -H "Accept: text/plain" "https://api.sdkman.io/2/candidates/java/linuxx64/versions/list?installed=" 2>/dev/null | grep -E "$pattern" | awk -F'|' '{print $NF}' | tr -d ' ' | head -n 1 || true)
+
+    if [ -n "$resolved" ]; then
+        echo "$resolved"
+    else
+        # Offline fallbacks based on requested version
+        if [ "$type" == "graalvm" ]; then
+            case "$ver" in
+                25) echo "25.3.4+1.r25-graalce" ;;
+                21) echo "21.0.2-graalce" ;;
+                17) echo "17.0.9-graalce" ;;
+                *)  echo "${ver}.0.2-graalce" ;;
+            esac
+        else
+            case "$ver" in
+                25) echo "25.0.4-tem" ;;
+                21) echo "21.0.12+1.1-tem" ;;
+                17) echo "17.0.20-tem" ;;
+                *)  echo "${ver}.0.12-tem" ;;
+            esac
+        fi
+    fi
+}
+
+show_status() {
+    echo "======================================================="
+    echo "  ☕ Java / JVM Environment Status (java-dev)"
+    echo "======================================================="
+    
+    echo "☕ Active Java Version:"
+    if command -v java >/dev/null 2>&1; then
+        echo "   • $(java -version 2>&1 | head -n 1)"
+        if [ -d "$SDKMAN_DIR/candidates/java/current" ]; then
+            local real_target
+            real_target=$(readlink -f "$SDKMAN_DIR/candidates/java/current" 2>/dev/null || true)
+            echo "   • Path: $real_target"
+        fi
+    else
+        echo "   • Java not available in PATH"
+    fi
+
+    echo ""
+    echo "🛠️  Associated Ecosystem Tools:"
+    if command -v gradle >/dev/null 2>&1; then
+        echo "   • Gradle: $(gradle --version 2>&1 | grep '^Gradle ' || echo 'Installed')"
+    else
+        echo "   • Gradle: Not installed"
+    fi
+
+    if command -v mvn >/dev/null 2>&1; then
+        echo "   • Maven:  $(mvn --version 2>&1 | head -n 1 | awk '{print $1,$2,$3}')"
+    else
+        echo "   • Maven:  Not installed"
+    fi
+
+    if command -v kotlinc >/dev/null 2>&1; then
+        echo "   • Kotlin: $(kotlinc -version 2>&1 || echo 'Installed')"
+    else
+        echo "   • Kotlin: Not installed"
+    fi
+
+    if [ -f ".sdkmanrc" ]; then
+        echo ""
+        echo "📁 .sdkmanrc configuration detected in current directory:"
+        cat .sdkmanrc | sed 's/^/   • /'
+    fi
+    echo "======================================================="
+}
+
+list_local() {
+    echo "======================================================="
+    echo "  📂 Locally Installed Versions (java-dev)"
+    echo "======================================================="
+    echo "Installed JDKs:"
+    if [ -d "$SDKMAN_DIR/candidates/java" ]; then
+        local current_id=""
+        if [ -L "$SDKMAN_DIR/candidates/java/current" ]; then
+            current_id=$(basename "$(readlink -f "$SDKMAN_DIR/candidates/java/current")")
+        fi
+
+        for d in "$SDKMAN_DIR/candidates/java"/*; do
+            [ -d "$d" ] || continue
+            local name
+            name=$(basename "$d")
+            [ "$name" == "current" ] && continue
+
+            if [ "$name" == "$current_id" ]; then
+                echo "  * $name (active)"
+            else
+                echo "    $name"
+            fi
+        done
+    else
+        echo "  (No JDKs installed)"
+    fi
+
+    echo ""
+    echo "Other tools installed via SDKMAN:"
+    for candidate in gradle maven kotlin; do
+        if [ -d "$SDKMAN_DIR/candidates/$candidate" ]; then
+            local versions
+            versions=$(ls -1 "$SDKMAN_DIR/candidates/$candidate" 2>/dev/null | grep -v 'current' | tr '\n' ' ' || true)
+            if [ -n "$versions" ]; then
+                echo "  • $candidate: $versions"
+            fi
+        fi
+    done
+    echo "======================================================="
+}
+
+list_remote() {
+    echo "======================================================="
+    echo "  🌐 Recommended Java Versions (SDKMAN)"
+    echo "======================================================="
+    echo "Eclipse Temurin (Recommended for standard development):"
+    echo "  • 21 (LTS)  -> $(resolve_identifier 21 temurin)"
+    echo "  • 17 (LTS)  -> $(resolve_identifier 17 temurin)"
+    echo "  • 25 (LTS)  -> $(resolve_identifier 25 temurin)"
+    echo ""
+    echo "GraalVM CE (Recommended for Native Image compilation):"
+    echo "  • 21        -> $(resolve_identifier 21 graalvm)"
+    echo "  • 17        -> $(resolve_identifier 17 graalvm)"
+    echo "  • 25        -> $(resolve_identifier 25 graalvm)"
+    echo ""
+    echo "💡 You can install any version with: change_version install <version>"
+    echo "   Or with GraalVM:                  change_version install <version> --graalvm"
+    echo "   For the full catalog:             sdk list java"
+    echo "======================================================="
+}
+
+install_version() {
+    local req_ver="$1"
+    local opt="$2"
+
+    if [ -z "$req_ver" ]; then
+        echo "❌ Error: Specify the version (e.g. change_version install 17)"
+        exit 1
+    fi
+
+    local type="temurin"
+    if [[ "$opt" == "--graalvm" || "$opt" == "-g" ]]; then
+        type="graalvm"
+    fi
+
+    local identifier
+    identifier=$(resolve_identifier "$req_ver" "$type")
+
+    echo "======================================================="
+    echo "  ⬇️  Installing Java via SDKMAN!: $identifier"
+    echo "======================================================="
+    sdk install java "$identifier"
+    echo "✅ Java $identifier successfully installed."
+}
+
+set_version() {
+    local req_ver="$1"
+    local opt="$2"
+    local session_only=false
+
+    if [ -z "$req_ver" ]; then
+        echo "❌ Error: Specify the version (e.g. change_version set 17)"
+        exit 1
+    fi
+
+    local type="temurin"
+    if [[ "$opt" == "--graalvm" || "$opt" == "-g" ]]; then
+        type="graalvm"
+    elif [[ "$opt" == "--session" || "$opt" == "-s" ]]; then
+        session_only=true
+    fi
+
+    local identifier
+    identifier=$(resolve_identifier "$req_ver" "$type")
+
+    # If not installed, install first
+    if [ ! -d "$SDKMAN_DIR/candidates/java/$identifier" ]; then
+        echo "ℹ️ Version $identifier is not installed locally. Downloading..."
+        sdk install java "$identifier"
+    fi
+
+    echo "======================================================="
+    if [ "$session_only" = true ]; then
+        echo "  🔄 Activating Java $identifier for current session only..."
+        sdk use java "$identifier"
+    else
+        echo "  🎯 Setting Java $identifier as default version..."
+        sdk default java "$identifier"
+    fi
+    echo "======================================================="
+    echo "✅ Active version now: $(java -version 2>&1 | head -n 1)"
+}
+
+# Command routing
+case "$1" in
+    ""|status)
+        show_status
+        ;;
+    list|-l)
+        list_local
+        ;;
+    remote|-r|list-remote)
+        list_remote
+        ;;
+    install)
+        shift
+        install_version "$1" "$2"
+        ;;
+    set|use)
+        shift
+        set_version "$1" "$2"
+        ;;
+    help|-h|--help)
+        show_help
+        ;;
+    *)
+        # If argument matches a version number or candidate identifier, treat as "set"
+        set_version "$1" "$2"
+        ;;
+esac
