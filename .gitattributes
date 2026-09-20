@@ -8,6 +8,7 @@ enter.sh text eol=lf
 */bin/* text eol=lf
 *-dev/bin/* text eol=lf
 .githooks/* text eol=lf
+tests/* text eol=lf
 
 # Text and configuration files
 *.md text

@@ -34,51 +34,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify script syntax (bash -n)
-        run: |
-          echo "Checking bash script syntax..."
-          bash -n create.sh enter.sh \
-            android-dev/setup.sh android-dev/bin/change_version \
-            java-dev/setup.sh java-dev/bin/change_version \
-            .githooks/pre-commit .githooks/pre-push
-          echo "All scripts passed syntax validation."
-
-      - name: Verify file permissions and Unix LF line endings
-        run: |
-          echo "Verifying executable bits (mode 755)..."
-          for script in create.sh enter.sh \
-                        android-dev/setup.sh android-dev/bin/change_version \
-                        java-dev/setup.sh java-dev/bin/change_version \
-                        .githooks/pre-commit .githooks/pre-push; do
-            if [ ! -x "$script" ]; then
-              echo "Error: $script is not marked as executable!"
-              exit 1
-            fi
-          done
-
-          echo "Verifying Unix LF line endings..."
-          if grep -r -l $'\r' --exclude-dir=".git" .; then
-            echo "Error: Detected CRLF line endings in repository files!"
-            exit 1
-          fi
-          echo "All permissions and line endings are correct."
-
-      - name: Run repository privacy & secrets audit
-        run: |
-          chmod +x .githooks/pre-commit .githooks/pre-push
-          ./.githooks/pre-commit --all
-
       - name: Install ShellCheck
         run: |
           sudo apt-get update -qq
           sudo apt-get install -qq --no-install-recommends shellcheck
 
-      - name: Run ShellCheck linter
+      - name: Run sandbox structural, syntax & script validation
         run: |
-          shellcheck create.sh enter.sh \
-            android-dev/setup.sh android-dev/bin/change_version \
-            java-dev/setup.sh java-dev/bin/change_version \
-            .githooks/pre-commit .githooks/pre-push
+          chmod +x tests/validate-sandboxes.sh .githooks/pre-commit .githooks/pre-push
+          ./tests/validate-sandboxes.sh --strict
+
+      - name: Run repository privacy & secrets audit
+        run: |
+          ./.githooks/pre-commit --all
 
       - name: Run Gitleaks secret scan
         uses: gitleaks/gitleaks-action@v2

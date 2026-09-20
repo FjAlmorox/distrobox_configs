@@ -30,6 +30,8 @@ Each environment configured in this repository adheres to the following directiv
 
 ```text
 distrobox_configs/
+├── .agents/                    # Modular skills and AI agent knowledge base
+│   └── skills/                 # Portable, task-specific runbooks (agentskills.io)
 ├── .editorconfig               # Indentation, UTF-8, and LF normalization across editors
 ├── .env.example                # Public and generic environment variables template
 ├── .gitattributes              # Strict protection: enforces LF for scripts and CLI tools
@@ -38,7 +40,9 @@ distrobox_configs/
 │       └── ci.yml              # CI/CD: Automated linting, syntax, and secret scanning
 ├── .githooks/                  # Versioned Git hooks in the repository
 │   ├── pre-commit              # Local scanner: blocks personal data and secret leaks on commit
-│   └── pre-push                # Global auditor: blocks pushes with secrets or private paths
+│   └── pre-push                # Global auditor: verifies security and sandbox structure on push
+├── tests/                      # Automated validation and structural auditing
+│   └── validate-sandboxes.sh   # Static structural, permission, syntax, and sandbox auditor
 
 ├── .gitignore                  # Exclusions for secrets, temporary files, IDEs, and homes
 ├── AGENTS.md                   # Operational guidelines and protocol for AI Agents
@@ -78,6 +82,7 @@ Git automatically invokes this hook before accepting any `git commit`:
 ### 2. Full Pre-Push Audit (`.githooks/pre-push`)
 Git automatically invokes this hook before pushing changes to any remote repository (`git push`):
 * Executes the security scanner in global mode (`--all`) across all tracked files.
+* Executes `./tests/validate-sandboxes.sh` to guarantee all sandboxes are structurally sound, declared in `distrobox.ini`, have executable permissions (`100755`), and pass syntax validation.
 * Guarantees that no prior commit or unnoticed file leaks sensitive data before reaching the remote.
 * **Strict Bypass Prohibition**: Using the `--no-verify` flag on commits or pushes is strictly prohibited.
 
@@ -87,10 +92,13 @@ git config core.hooksPath .githooks
 ```
 *(Pre-configured by default in this workspace)*.
 
-**To run a manual security audit at any time:**
+**To run manual validation at any time:**
 ```bash
-# Validate staged changes:
+# Validate staged changes for privacy and secret leaks:
 ./.githooks/pre-commit
+
+# Validate sandbox structures, permissions, and bash syntax:
+./tests/validate-sandboxes.sh
 
 # Validate the entire repository (simulating pre-push):
 ./.githooks/pre-push
@@ -98,14 +106,12 @@ git config core.hooksPath .githooks
 
 ### 3. Continuous Integration & Quality Gate (`.github/workflows/ci.yml`)
 Every push to `main` and every pull request targeting `main` is automatically verified by a lightweight, resource-optimized GitHub Actions workflow running on standard `ubuntu-latest`:
-* **Zero-Cost, Minimal Footprint**: Runs in a single unified job without container overhead, completing in under 25 seconds.
+* **Zero-Cost, Minimal Footprint**: Runs in a single unified job without container overhead, completing in under 20 seconds.
 * **Trigger Policy**: Only runs on `main` and Pull Requests. Developers can push to working branches (e.g. `feature/<name>`) without consuming CI runner time until ready to merge.
 * **Concurrency Auto-Cancellation**: Cancels obsolete in-progress runs automatically on new pushes to prevent wasted compute.
 * **Pipeline Checks**:
-  * **Bash Syntax Verification**: Runs `bash -n` across all scripts.
-  * **Permission & Integrity Check**: Ensures all scripts have `100755` executable permissions and Unix `LF` line endings.
+  * **Dynamic Sandbox & Script Validation**: Runs `./tests/validate-sandboxes.sh --strict` (validates all existing and newly added sandboxes dynamically, checking permissions, LF line endings, syntax `bash -n`, and static linting via `shellcheck`).
   * **Security & Privacy Audit**: Executes `./.githooks/pre-commit --all`.
-  * **ShellCheck Linting**: Validates static bash quality and best practices with zero warnings.
   * **Gitleaks Secret Scanning**: Analyzes git history for potential secrets and credentials.
 * **Workflow State Control**: The automated CI workflow can be paused or resumed anytime using the GitHub CLI:
   ```bash

@@ -7,5 +7,9 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "🚀 [Pre-Push Hook] Verifying repository security and integrity before push..."
+echo "🚀 [Pre-Push Hook] Verifying repository security, structure, and integrity before push..."
 "$SCRIPT_DIR/pre-commit" --all
+
+echo "📦 [Pre-Push Hook] Validating sandbox structures and script integrity..."
+"$SCRIPT_DIR/../tests/validate-sandboxes.sh"
+

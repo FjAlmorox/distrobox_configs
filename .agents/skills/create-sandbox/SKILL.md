@@ -106,10 +106,7 @@ Generate the modular subfolder structure:
 ---
 
 ### Phase 5: Technical Validation & Git Preparation
-* **Syntax check**: Verify bash syntax with `bash -n <scripts>`.
-* **Static quality**: Verify static analysis with `shellcheck <scripts>` (zero warnings).
-* **Permissions**: Ensure mode `100755` via `chmod +x <scripts>`.
-* **Line endings**: Verify Unix LF line endings via `git check-attr text eol -- <scripts>`.
-* **Pre-commit audit**: Run `./.githooks/pre-commit` on staged changes.
-* **Pre-push audit**: Run `./.githooks/pre-push` across the full repository.
+* **Automated Sandbox Audit**: Run `./tests/validate-sandboxes.sh` to automatically verify structure, permissions (`100755`), LF line endings, `distrobox.ini` registration, and bash syntax (`bash -n` / `shellcheck`).
+* **Pre-commit Audit**: Run `./.githooks/pre-commit` on staged changes to guarantee zero leaked secrets or personal data.
+* **Pre-push Audit**: Run `./.githooks/pre-push` to audit the entire repository and sandbox structure before push.
 * **Pull Request**: If submitting via PR, complete all sections of [`.github/pull_request_template.md`](../../.github/pull_request_template.md).

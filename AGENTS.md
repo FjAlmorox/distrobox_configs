@@ -69,7 +69,7 @@ Every AI agent MUST follow this protocol before suggesting or executing any vers
    * If the script detects host usernames, `/home/...` paths, or secrets, the agent MUST fix them immediately.
    * NEVER use `git commit --no-verify`.
 3. **Before a Push (`git push`)**:
-   * Run security audit across the entire repository: `./.githooks/pre-push` (or `./.githooks/pre-commit --all`).
+   * Run full repository audit & sandbox validation: `./.githooks/pre-push` (which runs privacy/secrets audit and `./tests/validate-sandboxes.sh`).
    * Verify clean commit history to push (`git log -n 5 --stat`).
    * NEVER use `git push --no-verify`.
 4. **Pull Request Protocol (`gh pr create` or Web)**:
@@ -108,8 +108,7 @@ A task creating or modifying a sandbox is considered complete ONLY if:
 4. All user CLI commands reside in `<name>-dev/bin/` without `.sh` extension.
 5. `setup.sh` is 100% non-interactive, idempotent, transfers `bin/*` to `~/.local/bin/`, and complies with the Conditional GUI / Emulator Pattern when applicable.
 6. Environment documentation (`<name>-dev/README.md`) and the main [`README.md`](./README.md) are updated.
-7. All scripts pass `bash -n` without syntax errors and `shellcheck` with zero warnings.
-8. All new scripts have executable permissions (`chmod +x` / mode `100755`), are covered by `.gitattributes` (enforcing LF), and are properly verified for Git.
-9. The repository cleanly passes mandatory pre-commit and pre-push checks (`./.githooks/pre-commit` and `./.githooks/pre-push`) with zero personal data, host paths, or leaked credentials, with `--no-verify` strictly prohibited.
-10. All code, scripts, CLI tools, messages, comments, and documentation are strictly written in English.
-11. If submitting via Pull Request, [`.github/pull_request_template.md`](./.github/pull_request_template.md) is completely filled out with all checklist items verified.
+7. The repository cleanly passes `./tests/validate-sandboxes.sh` (validating directory structure, manifest declaration, executable permissions `100755`, LF line endings, and syntax `bash -n`).
+8. The repository cleanly passes mandatory pre-commit and pre-push checks (`./.githooks/pre-commit` and `./.githooks/pre-push`) with zero personal data, host paths, or leaked credentials, with `--no-verify` strictly prohibited.
+9. All code, scripts, CLI tools, messages, comments, and documentation are strictly written in English.
+10. If submitting via Pull Request, [`.github/pull_request_template.md`](./.github/pull_request_template.md) is completely filled out with all checklist items verified.
