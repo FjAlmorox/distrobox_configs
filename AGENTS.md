@@ -34,7 +34,7 @@ Act as a **Senior Linux Systems and DevOps Engineer** specialized in **Distrobox
      * `bin/`: CLI commands installed automatically to `$HOME/.local/bin/` (without `.sh` extension).
      * `README.md`: Environment-specific technical documentation.
 5. **Version Management Standard (`change_version`)**:
-   If an environment manages multiple runtime or SDK versions, it MUST provide `bin/change_version` complying with the unified contract.
+   If an environment manages multiple runtime or SDK versions, it MUST provide `bin/change_version` complying with the unified contract (see [`.agents/skills/version-manager/SKILL.md`](./.agents/skills/version-manager/SKILL.md)).
 6. **Git Standards and Script Integrity**:
    * **Executable Bit**: All scripts (`.sh` or commands in `bin/`) MUST have execution permissions (`chmod +x`) before being committed to Git (mode `100755`).
    * **Unix LF Line Endings**: All scripts and commands must use Unix line endings (`LF`), enforced via `.gitattributes` (`*.sh`, `create.sh`, `enter.sh`, `*/bin/*`, `*-dev/bin/*`) and `.editorconfig`.
@@ -89,99 +89,13 @@ Before proposing or generating changes for a new environment or refactoring:
 
 ---
 
-## 📋 Protocol for Creating a New Distrobox
+## 📚 Specialized Skills and Runbooks (`.agents/skills/`)
 
-When a new development environment is requested, follow these **5 Phases**:
+To prevent context bloat and maintain consistency, procedural workflows and implementation contracts are maintained as modular skills under `.agents/skills/`.
 
-### Phase 1: Requirements Analysis and Interview (MANDATORY)
-**NEVER generate code blindly.** Before creating files, ask structured questions to clarify:
-* **Container name:** Mandatory convention `<tech>-dev` (e.g., `python-dev`, `rust-dev`, `go-dev`, `node-dev`).
-* **Base image:** `${DISTROBOX_BASE_IMAGE:-registry.fedoraproject.org/fedora-toolbox:${FEDORA_VERSION:-44}}` (default) or a specific distribution if technically required.
-* **Version managers / SDKs:** Version manager (e.g., `pyenv`, `rustup`, `nvm`, `sdkman`) or system packages?
-* **Initial default version:** Which LTS or stable release should be configured as default?
-* **Compilation toolchain:** Are C/C++ compilers required (`gcc`, `gcc-c++`, `clang`, `glibc-devel`, `make`) for native extensions?
-* **GUI & Multimedia support:** Pure CLI/backend or desktop GUIs (X11, Wayland, OpenGL, Vulkan, system fonts, audio)?
-* **Additional system libraries:** Headers for SSL (`openssl-devel`), compression (`zlib-devel`), databases (`sqlite-devel`, `libpq-devel`), etc.
-
-### Phase 2: Manifest Declaration
-Add section to [`distrobox.ini`](./distrobox.ini):
-```ini
-[<name>-dev]
-image="${DISTROBOX_BASE_IMAGE:-registry.fedoraproject.org/fedora-toolbox:${FEDORA_VERSION:-44}}"
-home="${DISTROBOX_HOMES_DIR:-${HOME}/.local/share/distrobox-homes}/<name>-dev"
-volume="${WORKSPACE_DIR:-${HOME}/Workspace}:${WORKSPACE_DIR:-${HOME}/Workspace}:rw"
-additional_flags="${DISTROBOX_ADDITIONAL_FLAGS:---device /dev/kvm --device /dev/dri}"
-init=false
-nvidia=${DISTROBOX_NVIDIA:-0}
-pull=${DISTROBOX_PULL:-1}
-root=false
-```
-
-### Phase 3: Environment Directory Creation (`<name>-dev/`)
-Generate modular structure:
-
-1. **`setup.sh`**:
-   * Initial container check (`/run/host/container-manager` or `CONTAINER_ID`).
-   * Package installation via `sudo dnf install -y --skip-unavailable ...` (fallback to `apt-get` if Debian/Ubuntu).
-   * **Conditional GUI / Emulator Pattern (Unified Standard)**:
-     If an environment supports desktop interfaces (JavaFX, Qt, GTK), emulators (Android Emulator, QEMU), or multimedia:
-     * `setup.sh` MUST declare the unified master toggle `INSTALL_GUI="${INSTALL_GUI:-true}"` and support `.env` overrides.
-     * If the environment specifically provides an emulator, it MUST inherit from the master toggle by default: `INSTALL_EMULATOR="${INSTALL_EMULATOR:-$INSTALL_GUI}"`.
-     * When `INSTALL_GUI=false`, the script MUST condition **all** related layers:
-       1. **System packages**: Skip Mesa DRI, Vulkan loader, X11, Wayland, GTK, desktop fonts, and audio libraries.
-       2. **SDK / Tooling components**: Skip emulator packages, system images, and virtual device (AVD) creation.
-     * The headless/CLI fallback MUST remain minimal, fast (< 30s setup), and strictly focused on compiler/runtime tools.
-   * Generic CLI command installation from `bin/`:
-     ```bash
-     if [ -d "$SCRIPT_DIR/bin" ]; then
-         mkdir -p "$HOME/.local/bin"
-         cp -r "$SCRIPT_DIR/bin/"* "$HOME/.local/bin/"
-         chmod +x "$HOME/.local/bin/"*
-     fi
-     ```
-   * Permanent environment variables in `$HOME/.bashrc` (including `$HOME/.local/bin` in `$PATH`).
-2. **`bin/change_version`** (if applicable):
-   * Executable file **without `.sh` extension**.
-   * Implements the unified contract (see below).
-3. **`README.md`**:
-   * Documentation with installed components, launch commands (`./create.sh <name>`, `./enter.sh <name>`), usage examples, and isolated home paths.
-
-### Phase 4: Global Registration
-* Add the new environment to the *Available Environments* table in [`README.md`](./README.md).
-
-### Phase 5: Technical Validation and Git Preparation
-* Verify script syntax:
-  `bash -n <script>`
-* Verify static script quality and best practices:
-  `shellcheck <script>` (if available locally; enforced in CI)
-* Ensure execution permissions required by Git (mode `100755`):
-  `chmod +x <scripts>`
-* Verify Git attributes (enforced LF line endings):
-  `git check-attr text eol -- <scripts>`
-* Run strict pre-commit audit on staged changes:
-  `./.githooks/pre-commit`
-* Run strict pre-push audit on the full repository:
-  `./.githooks/pre-push`
-* Stage new files in Git:
-  `git add <name>-dev/ distrobox.ini README.md AGENTS.md`
-* Confirm with `git status` that all files and scripts are properly staged without unintended files.
-* If opening a Pull Request: complete all sections of [`.github/pull_request_template.md`](./.github/pull_request_template.md) ensuring all checklist items are validated.
-
----
-
-## 🎯 Unified Contract for `change_version`
-
-Every `<name>-dev/bin/change_version` script must adhere to this user interface:
-
-| Command | Required Behavior |
-| :--- | :--- |
-| `change_version` *(or `status`)* | Shows current active version and complementary tools status. |
-| `change_version list` *(or `-l`)* | Lists versions installed locally inside the container. |
-| `change_version remote` *(or `-r`)* | Lists recommended versions available online. |
-| `change_version install <ver>` | Downloads and installs a version without forcing it as default. |
-| `change_version set <ver>` | Switches to that version (downloads it first if missing). |
-| `change_version <ver>` | Direct shortcut equivalent to `change_version set <ver>`. |
-| `change_version help` *(or `-h`)* | Shows help text (must work even before provisioning). |
+AI agents MUST consult and adhere to these specialized runbooks when performing related tasks:
+* **Creating a New Sandbox**: Follow the 5-phase protocol in [`.agents/skills/create-sandbox/SKILL.md`](./.agents/skills/create-sandbox/SKILL.md) for requirements analysis, manifest declaration, non-interactive `setup.sh` patterns (including the Conditional GUI / Emulator Pattern), and catalog updates.
+* **Version Manager Implementation**: Follow the contract and technical rules in [`.agents/skills/version-manager/SKILL.md`](./.agents/skills/version-manager/SKILL.md) for standard `change_version` CLI commands.
 
 ---
 
