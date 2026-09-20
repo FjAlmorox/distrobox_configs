@@ -123,10 +123,11 @@ Generate modular structure:
 1. **`setup.sh`**:
    * Initial container check (`/run/host/container-manager` or `CONTAINER_ID`).
    * Package installation via `sudo dnf install -y --skip-unavailable ...` (fallback to `apt-get` if Debian/Ubuntu).
-   * **Conditional GUI / Emulator Pattern**:
+   * **Conditional GUI / Emulator Pattern (Unified Standard)**:
      If an environment supports desktop interfaces (JavaFX, Qt, GTK), emulators (Android Emulator, QEMU), or multimedia:
-     * `setup.sh` MUST declare a clean toggle (`INSTALL_GUI="${INSTALL_GUI:-true}"` or `INSTALL_EMULATOR="${INSTALL_EMULATOR:-true}"`) and support `.env` overrides.
-     * When set to `false`, the script MUST condition **all** related layers:
+     * `setup.sh` MUST declare the unified master toggle `INSTALL_GUI="${INSTALL_GUI:-true}"` and support `.env` overrides.
+     * If the environment specifically provides an emulator, it MUST inherit from the master toggle by default: `INSTALL_EMULATOR="${INSTALL_EMULATOR:-$INSTALL_GUI}"`.
+     * When `INSTALL_GUI=false`, the script MUST condition **all** related layers:
        1. **System packages**: Skip Mesa DRI, Vulkan loader, X11, Wayland, GTK, desktop fonts, and audio libraries.
        2. **SDK / Tooling components**: Skip emulator packages, system images, and virtual device (AVD) creation.
      * The headless/CLI fallback MUST remain minimal, fast (< 30s setup), and strictly focused on compiler/runtime tools.

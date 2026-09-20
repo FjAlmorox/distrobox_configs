@@ -23,7 +23,8 @@ ANDROID_COMPILE_SDK="${ANDROID_COMPILE_SDK:-35}"
 ANDROID_BUILD_TOOLS="${ANDROID_BUILD_TOOLS:-35.0.0}"
 ANDROID_EMULATOR_API="${ANDROID_EMULATOR_API:-34}"
 ANDROID_CMDLINE_TOOLS_VERSION="${ANDROID_CMDLINE_TOOLS_VERSION:-11076708}"
-INSTALL_EMULATOR="${INSTALL_EMULATOR:-true}"
+INSTALL_GUI="${INSTALL_GUI:-true}"
+INSTALL_EMULATOR="${INSTALL_EMULATOR:-$INSTALL_GUI}"
 AVD_NAME="${AVD_NAME:-Pixel_6_API_${ANDROID_EMULATOR_API}}"
 AVD_DEVICE_PROFILE="${AVD_DEVICE_PROFILE:-pixel_6}"
 
@@ -33,8 +34,8 @@ echo "======================================================="
 echo "Configuration:"
 echo "  • Compile SDK Platform: android-$ANDROID_COMPILE_SDK"
 echo "  • Build-Tools:          $ANDROID_BUILD_TOOLS"
-echo "  • Emulator API:         $ANDROID_EMULATOR_API"
-echo "  • Install Emulator AVD: $INSTALL_EMULATOR"
+echo "  • GUI / Desktop support: $INSTALL_GUI"
+echo "  • Emulator & AVD:        $INSTALL_EMULATOR (API $ANDROID_EMULATOR_API)"
 echo "======================================================="
 
 # 1. Verify execution inside container
@@ -61,18 +62,18 @@ EMULATOR_PACKAGES_DEBIAN="libgl1-mesa-glx libgl1-mesa-dri libpulse0 libxcursor1 
 
 if command -v dnf >/dev/null 2>&1; then
     PACKAGES_TO_INSTALL="$BASE_PACKAGES_FEDORA"
-    if [ "$INSTALL_EMULATOR" = "true" ]; then
-        echo "   (Including emulator GPU, X11, Vulkan, and audio libraries)"
+    if [ "$INSTALL_GUI" = "true" ]; then
+        echo "   (Including desktop GUI, Mesa, Vulkan, and audio libraries)"
         PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL $EMULATOR_PACKAGES_FEDORA"
     else
-        echo "   (Headless mode: skipping emulator GPU and multimedia libraries)"
+        echo "   (Headless mode: skipping desktop GUI and multimedia libraries)"
     fi
     # shellcheck disable=SC2086
     sudo dnf install -y --skip-unavailable $PACKAGES_TO_INSTALL
 elif command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update
     PACKAGES_TO_INSTALL="$BASE_PACKAGES_DEBIAN"
-    if [ "$INSTALL_EMULATOR" = "true" ]; then
+    if [ "$INSTALL_GUI" = "true" ]; then
         PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL $EMULATOR_PACKAGES_DEBIAN"
     fi
     # shellcheck disable=SC2086

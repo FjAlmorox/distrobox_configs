@@ -89,8 +89,13 @@ emulator -avd Pixel_6_API_34 &
 You can configure sandbox defaults before running `setup.sh` via `.env` in the repository root:
 
 ```bash
-# Set to 'false' for an ultra-fast, headless build container (omits Mesa, X11, Vulkan, audio, and the 1.5 GB emulator)
-INSTALL_EMULATOR=false
+# Master toggle: set to 'false' for an ultra-fast, headless build container
+# (omits Mesa, X11, Vulkan, audio libraries, and the 1.5 GB emulator)
+INSTALL_GUI=false
+
+# Granular emulator override (defaults to INSTALL_GUI if omitted)
+# Set to 'false' if you want GUI libraries but do NOT want the mobile emulator
+# INSTALL_EMULATOR=false
 
 # Target compile SDK and build-tools
 ANDROID_COMPILE_SDK=35
