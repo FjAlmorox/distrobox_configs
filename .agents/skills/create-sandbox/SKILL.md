@@ -12,14 +12,27 @@ This guide defines the mandatory 5-phase process that any AI agent must strictly
 ## 📋 The 5-Phase Protocol
 
 ### Phase 1: Requirements Analysis and Interview (MANDATORY)
-**NEVER generate code blindly.** Before creating any files, ask structured questions to clarify:
-* **Container name:** Mandatory convention `<tech>-dev` (e.g., `python-dev`, `rust-dev`, `go-dev`, `node-dev`).
-* **Base image:** `${DISTROBOX_BASE_IMAGE:-registry.fedoraproject.org/fedora-toolbox:${FEDORA_VERSION:-44}}` (default) or a specific distribution if technically required.
-* **Version managers / SDKs:** Version manager (e.g., `pyenv`, `rustup`, `nvm`, `sdkman`) or system packages?
-* **Initial default version:** Which LTS or stable release should be configured as default?
-* **Compilation toolchain:** Are C/C++ compilers required (`gcc`, `gcc-c++`, `clang`, `glibc-devel`, `make`) for native extensions?
-* **GUI & Multimedia support:** Pure CLI/backend or desktop GUIs (X11, Wayland, OpenGL, Vulkan, system fonts, audio)?
-* **Additional system libraries:** Headers for SSL (`openssl-devel`), compression (`zlib-devel`), databases (`sqlite-devel`, `libpq-devel`), etc.
+**NEVER generate code blindly.** Before creating any files, conduct a structured, technically grounded interview to clarify and optimize the environment scope.
+
+#### 1. Mandatory Pre-Interview Research (Live Verification)
+* **Verify Upstream Real-Time Data**: The agent MUST use web search or official documentation to check current stable, active LTS, and legacy versions. **Never rely on internal memory or outdated defaults.**
+* **Identify Modern Tooling**: Investigate modern package and version managers (e.g., `uv` vs `pyenv` in Python, `fnm`/`pnpm` vs `nvm` in Node, `rustup` in Rust, `sdkman` in Java).
+
+#### 2. Architecture & Scope Optimization
+Actively guide the user to refine and optimize the container scope for maximum efficiency, fast provisioning, and zero unnecessary bloat:
+* **Scope Definition**: Clarify if the sandbox is **lean/specialized** (minimal dependencies, rapid spin-up) or **generalist/battery-included** (full developer toolchain, compilers, native C headers).
+* **Container Name**: Mandatory convention `<tech>-dev` (e.g., `python-dev`, `rust-dev`, `go-dev`, `node-dev`).
+* **Base Image**: `${DISTROBOX_BASE_IMAGE:-registry.fedoraproject.org/fedora-toolbox:${FEDORA_VERSION:-44}}` (default) or a specific distribution if technically required.
+* **Version Management**: System packages vs dedicated runtime manager (`change_version` integration).
+* **Initial Default Version**: Latest stable vs current LTS.
+* **Compilation Toolchain**: Native compilation dependencies (`gcc`, `gcc-c++`, `clang`, `glibc-devel`, `make`) only if required for native extensions or compiled languages.
+* **GUI & Multimedia Support**: Headless CLI vs desktop GUI (X11, Wayland, OpenGL, Vulkan, audio) using the Conditional GUI Pattern (`INSTALL_GUI`).
+* **Additional System Libraries**: SSL (`openssl-devel`), compression (`zlib-devel`), databases (`sqlite-devel`, `libpq-devel`), etc.
+
+#### 3. Presentation Standards
+* **Always Present Options**: Clearly lay out the viable choices for runtimes, package managers, and toolchains.
+* **Mark Recommended Choice**: Always explicitly prefix the top option with `(Recommended)` and provide a **reasoned technical justification** explaining *why* it is optimal for container performance, developer ergonomics, and repository consistency.
+* **Interactive Elicitation**: Formulate questions clearly so the user can easily choose or refine their preferences.
 
 ---
 
