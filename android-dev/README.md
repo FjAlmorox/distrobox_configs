@@ -83,8 +83,24 @@ emulator -avd Pixel_6_API_34 &
 
 ---
 
-## ⚙️ Configuration and Paths
+## ⚙️ Configuration and Customization
 
+### Local Customization via `.env`
+You can configure sandbox defaults before running `setup.sh` via `.env` in the repository root:
+
+```bash
+# Set to 'false' for an ultra-fast, headless build container (omits Mesa, X11, Vulkan, audio, and the 1.5 GB emulator)
+INSTALL_EMULATOR=false
+
+# Target compile SDK and build-tools
+ANDROID_COMPILE_SDK=35
+ANDROID_BUILD_TOOLS="35.0.0"
+
+# Emulator system image API level
+ANDROID_EMULATOR_API=34
+```
+
+### Paths and Exported Environment
 * **Isolated Home**: `~/.local/share/distrobox-homes/android-dev`
 * **Android SDK**: `$HOME/Android/Sdk`
 * **Exported variables in `.bashrc`**:

@@ -89,8 +89,25 @@ The window will instantly display on your host desktop.
 
 ---
 
-## ⚙️ Configuration and Paths
+## ⚙️ Configuration and Customization
 
+### Local Customization via `.env`
+You can configure sandbox defaults before running `setup.sh` via `.env` in the repository root:
+
+```bash
+# Set to 'false' for an ultra-lightweight, headless backend/CLI sandbox (omits GTK3, X11, fonts, audio)
+INSTALL_GUI=false
+
+# Default Java LTS version installed via SDKMAN! (default: 21)
+JAVA_DEFAULT_VERSION=21
+
+# Enable or disable complementary build tools
+INSTALL_GRADLE=true
+INSTALL_MAVEN=true
+INSTALL_KOTLIN=true
+```
+
+### Paths and Exported Environment
 * **Isolated Home**: `~/.local/share/distrobox-homes/java-dev`
 * **SDKMAN**: `$HOME/.sdkman`
 * **Exported variables in `.bashrc`**:

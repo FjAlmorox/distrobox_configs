@@ -123,7 +123,13 @@ Generate modular structure:
 1. **`setup.sh`**:
    * Initial container check (`/run/host/container-manager` or `CONTAINER_ID`).
    * Package installation via `sudo dnf install -y --skip-unavailable ...` (fallback to `apt-get` if Debian/Ubuntu).
-   * Unattended / non-interactive package manager or SDK installation.
+   * **Conditional GUI / Emulator Pattern**:
+     If an environment supports desktop interfaces (JavaFX, Qt, GTK), emulators (Android Emulator, QEMU), or multimedia:
+     * `setup.sh` MUST declare a clean toggle (`INSTALL_GUI="${INSTALL_GUI:-true}"` or `INSTALL_EMULATOR="${INSTALL_EMULATOR:-true}"`) and support `.env` overrides.
+     * When set to `false`, the script MUST condition **all** related layers:
+       1. **System packages**: Skip Mesa DRI, Vulkan loader, X11, Wayland, GTK, desktop fonts, and audio libraries.
+       2. **SDK / Tooling components**: Skip emulator packages, system images, and virtual device (AVD) creation.
+     * The headless/CLI fallback MUST remain minimal, fast (< 30s setup), and strictly focused on compiler/runtime tools.
    * Generic CLI command installation from `bin/`:
      ```bash
      if [ -d "$SCRIPT_DIR/bin" ]; then
@@ -185,7 +191,7 @@ A task creating or modifying a sandbox is considered complete ONLY if:
 2. [`./create.sh`](./create.sh) and [`./enter.sh`](./enter.sh) detect and operate with it automatically.
 3. No duplicate `create.sh` or `enter.sh` exists inside `<name>-dev/`.
 4. All user CLI commands reside in `<name>-dev/bin/` without `.sh` extension.
-5. `setup.sh` is 100% non-interactive, idempotent, and transfers `bin/*` to `~/.local/bin/`.
+5. `setup.sh` is 100% non-interactive, idempotent, transfers `bin/*` to `~/.local/bin/`, and complies with the Conditional GUI / Emulator Pattern when applicable.
 6. Environment documentation (`<name>-dev/README.md`) and the main [`README.md`](./README.md) are updated.
 7. All scripts pass `bash -n` without syntax errors and `shellcheck` with zero warnings.
 8. All new scripts have executable permissions (`chmod +x` / mode `100755`), are covered by `.gitattributes` (enforcing LF), and are properly verified for Git.
