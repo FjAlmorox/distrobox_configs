@@ -64,11 +64,17 @@ distrobox_configs/
 │   │   └── change_version      # JDK, GraalVM, and SDK version manager
 │   └── README.md               # Java/JVM technical documentation
 │
-└── python-dev/                 # [Environment] Python Development (uv, modern Python runtimes)
+├── python-dev/                 # [Environment] Python Development (uv, modern Python runtimes)
+│   ├── setup.sh                # Internal bootstrap (run once inside sandbox)
+│   ├── bin/                    # CLI commands installed to ~/.local/bin/
+│   │   └── change_version      # Python runtime and version manager
+│   └── README.md               # Python technical documentation
+│
+└── node-dev/                   # [Environment] Node.js & Frontend Development (fnm, pnpm, bun)
     ├── setup.sh                # Internal bootstrap (run once inside sandbox)
     ├── bin/                    # CLI commands installed to ~/.local/bin/
-    │   └── change_version      # Python runtime and version manager
-    └── README.md               # Python technical documentation
+    │   └── change_version      # Node.js runtime and version manager
+    └── README.md               # Node.js & Frontend technical documentation
 ```
 
 ---
@@ -163,6 +169,7 @@ Both [`create.sh`](./create.sh), [`enter.sh`](./enter.sh), and internal `setup.s
 | **`android-dev`** | [`./android-dev/`](./android-dev/) | `fedora-toolbox:44` | Android SDK, x86_64 Emulator, AVDs, ADB, OpenJDK 21 | [View details](./android-dev/README.md) |
 | **`java-dev`** | [`./java-dev/`](./java-dev/) | `fedora-toolbox:44` | Java 21, Kotlin, SDKMAN, Gradle, Maven, GraalVM tools, Desktop GUI | [View details](./java-dev/README.md) |
 | **`python-dev`** | [`./python-dev/`](./python-dev/) | `fedora-toolbox:44` | Astral `uv`, Python 3.13/3.14, C build headers, Ruff, Mypy, Pytest | [View details](./python-dev/README.md) |
+| **`node-dev`** | [`./node-dev/`](./node-dev/) | `fedora-toolbox:44` | `fnm`, Node 24 LTS, pnpm, bun, React/Angular, Vitest/Playwright | [View details](./node-dev/README.md) |
 
 ---
 
@@ -175,6 +182,7 @@ Root-level scripts manage any repository environment in a unified way:
 ./create.sh android-dev
 ./create.sh java-dev
 ./create.sh python-dev
+./create.sh node-dev
 
 # Or run without arguments for an interactive menu:
 ./create.sh
@@ -183,6 +191,7 @@ Root-level scripts manage any repository environment in a unified way:
 ./enter.sh android-dev
 ./enter.sh java-dev
 ./enter.sh python-dev
+./enter.sh node-dev
 
 # Or interactive menu:
 ./enter.sh
@@ -281,6 +290,12 @@ To maintain a consistent experience across containers, any sandbox managing mult
   * Installs on demand and switches global default symlinks in `~/.local/bin/`.
   * Supports `-p` / `--project` flag to pin Python versions to local `.python-version` files.
   * Displays cross-tool status for `uv`, active virtualenvs, `ruff`, `mypy`, `pytest`, and `ipython`.
+* **In `node-dev`**:
+  * Manages Node.js versions (e.g. `24`, `22`, `26`) powered by `fnm` (Fast Node Manager).
+  * Automatically applies `.node-version` and `.nvmrc` files on directory navigation.
+  * Supports `-s` / `--session` flag to switch versions for current shell session only.
+  * Displays cross-tool status for `pnpm`, `npm`, `yarn`, `bun`, and `package.json` detection.
+
 
 
 ---

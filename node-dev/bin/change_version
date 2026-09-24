@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+set -e
+
+# ==============================================================================
+# change_version - Unified version manager for Node.js Sandbox (node-dev)
+# ==============================================================================
+
+show_help() {
+    echo "======================================================="
+    echo "  🔄 change_version (node-dev)"
+    echo "======================================================="
+    echo "Usage:"
+    echo "  change_version                      Show current status and tools"
+    echo "  change_version list, -l             List locally installed Node.js versions"
+    echo "  change_version remote, -r           List recommended versions available online"
+    echo "  change_version install <ver>        Download & install Node version (e.g. 24, 22, 26)"
+    echo "  change_version set <ver> [-s]       Activate version (installs if missing)"
+    echo "  change_version <ver>                Shortcut for 'change_version set <ver>'"
+    echo ""
+    echo "Options:"
+    echo "  -s, --session                       Switch version for current terminal session only"
+    echo "======================================================="
+}
+
+if [[ "$1" == "help" || "$1" == "--help" || "$1" == "-h" ]]; then
+    show_help
+    exit 0
+fi
+
+export PATH="$HOME/.local/bin:$HOME/.bun/bin:$PATH"
+
+check_fnm() {
+    if ! command -v fnm >/dev/null 2>&1; then
+        echo "❌ Error: 'fnm' not found in PATH or ~/.local/bin."
+        echo "   Please run setup.sh inside the container first:"
+        echo "     bash ~/Workspace/distrobox_configs/node-dev/setup.sh"
+        exit 1
+    fi
+    eval "$(fnm env --shell bash)"
+}
+
+show_status() {
+    check_fnm
+    echo "======================================================="
+    echo "  🟢 Node.js & Frontend Environment Status (node-dev)"
+    echo "======================================================="
+
+    echo "🟢 Active Node.js Runtime:"
+    if command -v node >/dev/null 2>&1; then
+        local node_ver
+        node_ver=$(node -v 2>&1)
+        local node_path
+        node_path=$(which node)
+        echo "   • Version: $node_ver"
+        echo "   • Binary:  $node_path"
+    else
+        echo "   • Node.js is not active in current PATH"
+    fi
+
+    echo ""
+    echo "🚀 Runtime & Version Manager:"
+    if command -v fnm >/dev/null 2>&1; then
+        echo "   • fnm: $(fnm --version 2>&1)"
+    fi
+
+    echo ""
+    echo "🛠️  Associated Package Managers & Runtimes:"
+    if command -v pnpm >/dev/null 2>&1; then
+        echo "   • pnpm: $(pnpm -v 2>&1)"
+    else
+        echo "   • pnpm: Not installed"
+    fi
+
+    if command -v npm >/dev/null 2>&1; then
+        echo "   • npm:  $(npm -v 2>&1)"
+    else
+        echo "   • npm:  Not installed"
+    fi
+
+    if command -v yarn >/dev/null 2>&1; then
+        echo "   • yarn: $(yarn -v 2>&1)"
+    else
+        echo "   • yarn: Not installed"
+    fi
+
+    if command -v bun >/dev/null 2>&1; then
+        echo "   • bun:  $(bun -v 2>&1)"
+    else
+        echo "   • bun:  Not installed"
+    fi
+
+    if [ -f ".node-version" ]; then
+        echo ""
+        echo "📁 Local .node-version file detected in current directory:"
+        sed 's/^/   • /' .node-version
+    elif [ -f ".nvmrc" ]; then
+        echo ""
+        echo "📁 Local .nvmrc file detected in current directory:"
+        sed 's/^/   • /' .nvmrc
+    elif [ -f "package.json" ]; then
+        echo ""
+        echo "📁 Project configuration (package.json) detected in current directory."
+    fi
+
+    echo "======================================================="
+}
+
+list_local() {
+    check_fnm
+    echo "======================================================="
+    echo "  📂 Locally Installed Node.js Versions (node-dev)"
+    echo "======================================================="
+    fnm list
+    echo "======================================================="
+}
+
+list_remote() {
+    check_fnm
+    echo "======================================================="
+    echo "  🌐 Recommended Node.js Versions (fnm)"
+    echo "======================================================="
+    echo "Curated Long-Term Support (LTS) & Stable Releases:"
+    echo "  • 24          -> Active LTS (Recommended for standard development)"
+    echo "  • 22          -> Maintenance LTS (Enterprise / legacy compatibility)"
+    echo "  • 26          -> Current release (Latest JavaScript & V8 features)"
+    echo ""
+    echo "💡 You can install and switch with: change_version set <version>"
+    echo "   Or install without switching:    change_version install <version>"
+    echo "   To view full online catalog:     fnm list-remote"
+    echo "======================================================="
+}
+
+install_version() {
+    check_fnm
+    local req_ver="$1"
+
+    if [ -z "$req_ver" ]; then
+        echo "❌ Error: Specify the version to install (e.g. change_version install 22)"
+        exit 1
+    fi
+
+    echo "======================================================="
+    echo "  ⬇️  Downloading and installing Node.js $req_ver via fnm..."
+    echo "======================================================="
+    fnm install "$req_ver"
+    echo "✅ Node.js $req_ver successfully installed."
+}
+
+set_version() {
+    check_fnm
+    local req_ver="$1"
+    local opt="$2"
+    local session_only=false
+
+    if [ -z "$req_ver" ]; then
+        echo "❌ Error: Specify the version to activate (e.g. change_version set 24)"
+        exit 1
+    fi
+
+    if [[ "$opt" == "--session" || "$opt" == "-s" ]]; then
+        session_only=true
+    fi
+
+    echo "======================================================="
+    echo "  🎯 Activating Node.js $req_ver..."
+    echo "======================================================="
+
+    # Install if missing
+    fnm install "$req_ver"
+
+    if [ "$session_only" = true ]; then
+        echo "🔄 Setting Node.js $req_ver for current shell session only..."
+        fnm use "$req_ver"
+    else
+        echo "🎯 Setting Node.js $req_ver as default version..."
+        fnm default "$req_ver"
+        fnm use "$req_ver"
+    fi
+
+    echo "======================================================="
+    echo "Active version now: $(node -v 2>&1)"
+}
+
+# Command routing
+case "$1" in
+    ""|status)
+        show_status
+        ;;
+    list|-l)
+        list_local
+        ;;
+    remote|-r|list-remote)
+        list_remote
+        ;;
+    install)
+        shift
+        install_version "$1"
+        ;;
+    set|use)
+        shift
+        set_version "$1" "$2"
+        ;;
+    help|-h|--help)
+        show_help
+        ;;
+    *)
+        # If argument matches a version string, treat as "set"
+        set_version "$1" "$2"
+        ;;
+esac
