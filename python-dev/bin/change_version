@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+set -e
+
+# ==============================================================================
+# change_version - Unified version manager for Python Sandbox (python-dev)
+# ==============================================================================
+
+show_help() {
+    echo "======================================================="
+    echo "  🔄 change_version (python-dev)"
+    echo "======================================================="
+    echo "Usage:"
+    echo "  change_version                      Show current status and tools"
+    echo "  change_version list, -l             List locally installed Python versions"
+    echo "  change_version remote, -r           List recommended versions available online"
+    echo "  change_version install <ver>        Download & install version (e.g. 3.14, 3.12, 3.13t)"
+    echo "  change_version set <ver> [-p]       Activate version (installs if missing)"
+    echo "  change_version <ver>                Shortcut for 'change_version set <ver>'"
+    echo ""
+    echo "Options:"
+    echo "  -p, --project                       Pin version in current directory (.python-version)"
+    echo "======================================================="
+}
+
+if [[ "$1" == "help" || "$1" == "--help" || "$1" == "-h" ]]; then
+    show_help
+    exit 0
+fi
+
+export PATH="$HOME/.local/bin:$PATH"
+
+check_uv() {
+    if ! command -v uv >/dev/null 2>&1; then
+        echo "❌ Error: 'uv' not found in PATH or ~/.local/bin."
+        echo "   Please run setup.sh inside the container first:"
+        echo "     bash ~/Workspace/distrobox_configs/python-dev/setup.sh"
+        exit 1
+    fi
+}
+
+show_status() {
+    echo "======================================================="
+    echo "  🐍 Python Environment Status (python-dev)"
+    echo "======================================================="
+
+    echo "🐍 Active Python Runtime:"
+    if command -v python3 >/dev/null 2>&1; then
+        local py_ver
+        py_ver=$(python3 --version 2>&1)
+        local py_path
+        py_path=$(which python3)
+        local real_target
+        real_target=$(readlink -f "$py_path" 2>/dev/null || echo "$py_path")
+        echo "   • Version: $py_ver"
+        echo "   • Binary:  $py_path"
+        if [ "$py_path" != "$real_target" ]; then
+            echo "   • Target:  $real_target"
+        fi
+    else
+        echo "   • Python 3 is not available in PATH"
+    fi
+
+    echo ""
+    echo "🚀 Package & Environment Manager:"
+    if command -v uv >/dev/null 2>&1; then
+        echo "   • uv: $(uv --version 2>&1)"
+    else
+        echo "   • uv: Not found"
+    fi
+
+    if [ -n "$VIRTUAL_ENV" ]; then
+        echo "   • Active Virtualenv: $VIRTUAL_ENV"
+    fi
+
+    echo ""
+    echo "🛠️  Associated Developer CLI Tools:"
+    for tool in ruff mypy pytest ipython pre-commit; do
+        if command -v "$tool" >/dev/null 2>&1; then
+            local t_ver
+            t_ver=$("$tool" --version 2>&1 | head -n 1)
+            echo "   • $tool: $t_ver"
+        else
+            echo "   • $tool: Not installed"
+        fi
+    done
+
+    if [ -f ".python-version" ]; then
+        echo ""
+        echo "📁 Local .python-version file detected in current directory:"
+        sed 's/^/   • /' .python-version
+    elif [ -f "pyproject.toml" ]; then
+        echo ""
+        echo "📁 Project configuration (pyproject.toml) detected in current directory."
+    fi
+
+    echo "======================================================="
+}
+
+list_local() {
+    check_uv
+    echo "======================================================="
+    echo "  📂 Locally Installed Python Versions (python-dev)"
+    echo "======================================================="
+
+    local active_bin=""
+    if command -v python3 >/dev/null 2>&1; then
+        active_bin=$(readlink -f "$(which python3)" 2>/dev/null || true)
+    fi
+
+    # Check uv installed versions
+    local installed
+    installed=$(uv python list --only-installed 2>/dev/null || true)
+
+    if [ -n "$installed" ]; then
+        while IFS= read -r line; do
+            local bin_path
+            bin_path=$(echo "$line" | awk '{print $NF}')
+            if [ -n "$active_bin" ] && [ "$bin_path" = "$active_bin" ]; then
+                echo "  * $line (default)"
+            else
+                echo "    $line"
+            fi
+        done <<< "$installed"
+    else
+        echo "  (No versions found via uv python list)"
+    fi
+
+    echo "======================================================="
+}
+
+list_remote() {
+    echo "======================================================="
+    echo "  🌐 Recommended Python Versions (Astral uv)"
+    echo "======================================================="
+    echo "Standard CPython Releases:"
+    echo "  • 3.14        -> Latest stable release"
+    echo "  • 3.13        -> Default stable release (Recommended for ecosystem compatibility)"
+    echo "  • 3.12        -> Mature stable release"
+    echo "  • 3.11        -> LTS release"
+    echo ""
+    echo "Specialized Runtimes:"
+    echo "  • 3.13t       -> Free-threaded CPython 3.13 (experimental no-GIL)"
+    echo "  • pypy3.10    -> High-performance JIT Python compiler"
+    echo ""
+    echo "💡 You can install and switch with: change_version set <version>"
+    echo "   Or install without switching:    change_version install <version>"
+    echo "   To view full online catalog:     uv python list"
+    echo "======================================================="
+}
+
+install_version() {
+    check_uv
+    local req_ver="$1"
+
+    if [ -z "$req_ver" ]; then
+        echo "❌ Error: Specify the version to install (e.g. change_version install 3.14)"
+        exit 1
+    fi
+
+    echo "======================================================="
+    echo "  ⬇️  Downloading and installing Python $req_ver via uv..."
+    echo "======================================================="
+    uv python install "$req_ver"
+    echo "✅ Python $req_ver successfully installed."
+}
+
+set_version() {
+    check_uv
+    local req_ver="$1"
+    local opt="$2"
+    local pin_project=false
+
+    if [ -z "$req_ver" ]; then
+        echo "❌ Error: Specify the version to activate (e.g. change_version set 3.13)"
+        exit 1
+    fi
+
+    if [[ "$opt" == "--project" || "$opt" == "-p" ]]; then
+        pin_project=true
+    fi
+
+    echo "======================================================="
+    echo "  🎯 Activating Python $req_ver..."
+    echo "======================================================="
+
+    # Ensure version is installed
+    local python_bin
+    python_bin=$(uv python find "$req_ver" 2>/dev/null || true)
+    if [ -z "$python_bin" ] || [ ! -x "$python_bin" ]; then
+        echo "ℹ️ Python $req_ver is not installed locally. Downloading via uv..."
+        uv python install "$req_ver"
+        python_bin=$(uv python find "$req_ver")
+    fi
+
+    if [ "$pin_project" = true ]; then
+        echo "📌 Pinning Python $req_ver to current project directory (.python-version)..."
+        uv python pin "$req_ver"
+    fi
+
+    # Update default symlinks in ~/.local/bin
+    mkdir -p "$HOME/.local/bin"
+    ln -sf "$python_bin" "$HOME/.local/bin/python3"
+    ln -sf "$python_bin" "$HOME/.local/bin/python"
+
+    echo "✅ Global default Python updated: $python_bin"
+    echo "======================================================="
+    echo "Active version now: $(python3 --version 2>&1)"
+}
+
+# Command routing
+case "$1" in
+    ""|status)
+        show_status
+        ;;
+    list|-l)
+        list_local
+        ;;
+    remote|-r|list-remote)
+        list_remote
+        ;;
+    install)
+        shift
+        install_version "$1"
+        ;;
+    set|use)
+        shift
+        set_version "$1" "$2"
+        ;;
+    help|-h|--help)
+        show_help
+        ;;
+    *)
+        # If argument matches a version string, treat as "set"
+        set_version "$1" "$2"
+        ;;
+esac

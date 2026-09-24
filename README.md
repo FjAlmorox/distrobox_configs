@@ -58,11 +58,17 @@ distrobox_configs/
 │   │   └── change_version      # SDK and emulator version manager
 │   └── README.md               # Android technical documentation
 │
-└── java-dev/                   # [Environment] Java / Kotlin / JVM Development
+├── java-dev/                   # [Environment] Java / Kotlin / JVM Development
+│   ├── setup.sh                # Internal bootstrap (run once inside sandbox)
+│   ├── bin/                    # CLI commands installed to ~/.local/bin/
+│   │   └── change_version      # JDK, GraalVM, and SDK version manager
+│   └── README.md               # Java/JVM technical documentation
+│
+└── python-dev/                 # [Environment] Python Development (uv, modern Python runtimes)
     ├── setup.sh                # Internal bootstrap (run once inside sandbox)
     ├── bin/                    # CLI commands installed to ~/.local/bin/
-    │   └── change_version      # JDK, GraalVM, and SDK version manager
-    └── README.md               # Java/JVM technical documentation
+    │   └── change_version      # Python runtime and version manager
+    └── README.md               # Python technical documentation
 ```
 
 ---
@@ -156,6 +162,7 @@ Both [`create.sh`](./create.sh), [`enter.sh`](./enter.sh), and internal `setup.s
 | :--- | :--- | :--- | :--- | :--- |
 | **`android-dev`** | [`./android-dev/`](./android-dev/) | `fedora-toolbox:44` | Android SDK, x86_64 Emulator, AVDs, ADB, OpenJDK 21 | [View details](./android-dev/README.md) |
 | **`java-dev`** | [`./java-dev/`](./java-dev/) | `fedora-toolbox:44` | Java 21, Kotlin, SDKMAN, Gradle, Maven, GraalVM tools, Desktop GUI | [View details](./java-dev/README.md) |
+| **`python-dev`** | [`./python-dev/`](./python-dev/) | `fedora-toolbox:44` | Astral `uv`, Python 3.13/3.14, C build headers, Ruff, Mypy, Pytest | [View details](./python-dev/README.md) |
 
 ---
 
@@ -167,6 +174,7 @@ Root-level scripts manage any repository environment in a unified way:
 # 1. Create a specific container:
 ./create.sh android-dev
 ./create.sh java-dev
+./create.sh python-dev
 
 # Or run without arguments for an interactive menu:
 ./create.sh
@@ -174,6 +182,7 @@ Root-level scripts manage any repository environment in a unified way:
 # 2. Enter a container (positions you directly in your Workspace):
 ./enter.sh android-dev
 ./enter.sh java-dev
+./enter.sh python-dev
 
 # Or interactive menu:
 ./enter.sh
@@ -267,6 +276,12 @@ To maintain a consistent experience across containers, any sandbox managing mult
   * Defaults to **Eclipse Temurin LTS**. Use `-g` / `--graalvm` for **GraalVM CE**.
   * Use `-s` / `--session` to switch versions for current terminal session only (`sdk use`).
   * Displays cross-tool status for Gradle, Maven, Kotlin, and `.sdkmanrc` files.
+* **In `python-dev`**:
+  * Manages Python runtime versions (e.g. `3.13`, `3.14`, `3.13t`, `pypy3.10`) powered by Astral `uv`.
+  * Installs on demand and switches global default symlinks in `~/.local/bin/`.
+  * Supports `-p` / `--project` flag to pin Python versions to local `.python-version` files.
+  * Displays cross-tool status for `uv`, active virtualenvs, `ruff`, `mypy`, `pytest`, and `ipython`.
+
 
 ---
 
