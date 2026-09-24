@@ -60,7 +60,7 @@ Act as a **Senior Linux Systems and DevOps Engineer** specialized in **Distrobox
 Every AI agent MUST follow this protocol before suggesting or executing any version control operations:
 
 1. **Branching & CI Strategy**:
-   * **Feature Branches**: Develop new sandboxes and features in dedicated branches (`feature/<name>` or `fix/<topic>`).
+   * **Mandatory Feature Branch Initialization**: Develop all new sandboxes, tools, and features in dedicated branches (`feature/<name>` or `fix/<topic>`). The agent MUST create and checkout the feature branch (`git checkout -b feature/<name>`) **BEFORE** modifying or creating any repository files or manifests (`distrobox.ini`, `setup.sh`, etc.).
    * **Resource-Optimized CI Triggers**: GitHub Actions runs exclusively on `push` to `main` and `pull_request` targeting `main`. Working branches do not consume CI minutes until ready for review/merge.
 2. **Before a Commit (`git commit`)**:
    * Check staged files: `git status` (no unexpected files or pollution).
@@ -72,10 +72,19 @@ Every AI agent MUST follow this protocol before suggesting or executing any vers
    * Run full repository audit & sandbox validation: `./.githooks/pre-push` (which runs privacy/secrets audit and `./tests/validate-sandboxes.sh`).
    * Verify clean commit history to push (`git log -n 5 --stat`).
    * NEVER use `git push --no-verify`.
-4. **Pull Request Protocol (`gh pr create` or Web)**:
-   * **Mandatory Template**: Every PR targeting `main` must complete all sections of [`.github/pull_request_template.md`](./.github/pull_request_template.md).
-   * **DoD Verification**: All checklist items in the template must be verified and checked before requesting review or merging.
-   * **Workflow State**: When automated CI verification is required for the PR, ensure the workflow is active (`gh workflow enable ci.yml`).
+4. **Integration Workflows (Local Merge vs. Pull Request)**:
+   * **A. Local Pair-Programming (Direct Merge to `main`)**:
+     When working directly with the developer locally, once the sandbox is provisioned and live in-container smoke tests pass:
+     1. Run `./.githooks/pre-push` on the feature branch.
+     2. Switch to `main`: `git checkout main`.
+     3. Merge feature branch cleanly: `git merge feature/<name>`.
+     4. Re-run `./.githooks/pre-push` on `main`.
+     5. Delete the merged feature branch: `git branch -d feature/<name>`.
+   * **B. Pull Request Protocol (`gh pr create` or Web)**:
+     When contributing to remote repositories with review:
+     1. Push feature branch: `git push -u origin feature/<name>`.
+     2. Complete all sections of [`.github/pull_request_template.md`](./.github/pull_request_template.md).
+     3. Ensure workflow state is active (`gh workflow enable ci.yml`).
 
 ---
 
@@ -94,7 +103,7 @@ Before proposing or generating changes for a new environment or refactoring:
 To prevent context bloat and maintain consistency, procedural workflows and implementation contracts are maintained as modular skills under `.agents/skills/`.
 
 AI agents MUST consult and adhere to these specialized runbooks when performing related tasks:
-* **Creating a New Sandbox**: Follow the 5-phase protocol in [`.agents/skills/create-sandbox/SKILL.md`](./.agents/skills/create-sandbox/SKILL.md) for requirements analysis, manifest declaration, non-interactive `setup.sh` patterns (including the Conditional GUI / Emulator Pattern), and catalog updates.
+* **Creating a New Sandbox**: Follow the 7-phase protocol in [`.agents/skills/create-sandbox/SKILL.md`](./.agents/skills/create-sandbox/SKILL.md) for requirements analysis, feature branch initialization, manifest declaration, non-interactive `setup.sh` patterns (including the Conditional GUI / Emulator Pattern), catalog updates, live in-container testing, and integration/merge.
 * **Version Manager Implementation**: Follow the contract and technical rules in [`.agents/skills/version-manager/SKILL.md`](./.agents/skills/version-manager/SKILL.md) for standard `change_version` CLI commands.
 
 ---
@@ -102,13 +111,16 @@ AI agents MUST consult and adhere to these specialized runbooks when performing 
 ## ✅ Definition of Done (DoD)
 
 A task creating or modifying a sandbox is considered complete ONLY if:
-1. The container is declared in [`distrobox.ini`](./distrobox.ini).
-2. [`./create.sh`](./create.sh) and [`./enter.sh`](./enter.sh) detect and operate with it automatically.
-3. No duplicate `create.sh` or `enter.sh` exists inside `<name>/`.
-4. All user CLI commands reside in `<name>/bin/` without `.sh` extension.
-5. `setup.sh` is 100% non-interactive, idempotent, transfers `bin/*` to `~/.local/bin/`, and complies with the Conditional GUI / Emulator Pattern when applicable.
-6. Environment documentation (`<name>/README.md`) and the main [`README.md`](./README.md) are updated.
-7. The repository cleanly passes `./tests/validate-sandboxes.sh` (validating directory structure, manifest declaration, executable permissions `100755`, LF line endings, and syntax `bash -n`).
-8. The repository cleanly passes mandatory pre-commit and pre-push checks (`./.githooks/pre-commit` and `./.githooks/pre-push`) with zero personal data, host paths, or leaked credentials, with `--no-verify` strictly prohibited.
-9. All code, scripts, CLI tools, messages, comments, and documentation are strictly written in English.
-10. If submitting via Pull Request, [`.github/pull_request_template.md`](./.github/pull_request_template.md) is completely filled out with all checklist items verified.
+1. The task was developed on a dedicated feature branch (`feature/<name>`) initialized before any code modifications.
+2. The container is declared in [`distrobox.ini`](./distrobox.ini).
+3. [`./create.sh`](./create.sh) and [`./enter.sh`](./enter.sh) detect and operate with it automatically.
+4. No duplicate `create.sh` or `enter.sh` exists inside `<name>/`.
+5. All user CLI commands reside in `<name>/bin/` without `.sh` extension.
+6. `setup.sh` is 100% non-interactive, idempotent, transfers `bin/*` to `~/.local/bin/`, and complies with the Conditional GUI / Emulator Pattern when applicable.
+7. Environment documentation (`<name>/README.md`) and the main [`README.md`](./README.md) are updated.
+8. The repository cleanly passes `./tests/validate-sandboxes.sh` (validating directory structure, manifest declaration, executable permissions `100755`, LF line endings, and syntax `bash -n`).
+9. The repository cleanly passes mandatory pre-commit and pre-push checks (`./.githooks/pre-commit` and `./.githooks/pre-push`) with zero personal data, host paths, or leaked credentials, with `--no-verify` strictly prohibited.
+10. **Live In-Container Verification**: The container has been spun up via `./create.sh <name>`, `setup.sh` successfully executed inside it, and runtime / version-manager smoke tests verified functional.
+11. All code, scripts, CLI tools, messages, comments, and documentation are strictly written in English.
+12. **Integration & Finalization**: The feature branch is cleanly merged into `main` (for local pair-programming workflows) with the local working branch deleted, or submitted via Pull Request with all checklist items verified.
+

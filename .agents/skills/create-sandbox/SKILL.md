@@ -1,15 +1,15 @@
 ---
 name: create-sandbox
-description: Comprehensive 5-phase protocol and runbook for creating and provisioning new containerized development environments in this repository.
+description: Comprehensive 7-phase protocol and runbook for creating, provisioning, verifying, and integrating new containerized development environments in this repository.
 ---
 
 # 📦 Skill: Create Sandbox Environment
 
-This guide defines the mandatory 5-phase process that any AI agent must strictly follow when asked to design, build, or provision a new Distrobox environment.
+This guide defines the mandatory 7-phase process that any AI agent must strictly follow when asked to design, build, provision, test, or integrate a new Distrobox environment.
 
 ---
 
-## 📋 The 5-Phase Protocol
+## 📋 The 7-Phase Protocol
 
 ### Phase 1: Requirements Analysis and Interview (MANDATORY)
 **NEVER generate code blindly.** Before creating any files, conduct a structured, technically grounded interview to clarify and optimize the environment scope.
@@ -36,7 +36,21 @@ Actively guide the user to refine and optimize the container scope for maximum e
 
 ---
 
-### Phase 2: Manifest Declaration
+### Phase 2: Feature Branch Initialization (MANDATORY BEFORE ANY FILE EDIT)
+**NEVER modify repository files or manifests directly on `main`.**
+Once requirements are agreed upon with the user, initialize a dedicated Git feature branch before writing or editing any file:
+
+```bash
+# 1. Ensure main is clean
+git status
+
+# 2. Create and switch to feature branch
+git checkout -b feature/<name>
+```
+
+---
+
+### Phase 3: Manifest Declaration
 Add the new container section to [`distrobox.ini`](../../distrobox.ini) complying with standard parameterized defaults:
 
 ```ini
@@ -53,7 +67,7 @@ root=false
 
 ---
 
-### Phase 3: Environment Directory Creation (`<name>/`)
+### Phase 4: Environment Directory Creation (`<name>/`)
 Generate the modular subfolder structure:
 
 ```text
@@ -70,7 +84,7 @@ Generate the modular subfolder structure:
 * **Package installation**: Use `sudo dnf install -y --skip-unavailable ...` (fallback to `apt-get` if Debian/Ubuntu).
 * **Conditional GUI / Emulator Pattern (Unified Standard)**:
   If the environment supports desktop interfaces (JavaFX, Qt, GTK), emulators, or multimedia:
-  1. Declare the unified master toggle: `INSTALL_GUI="${INSTALL_GUI:-true}"`.
+  1. Declare the unified master toggle: `INSTALL_GUI="${INSTALL_GUI:-true}"` (or `false` if headless by default).
   2. If the environment provides an emulator, inherit from the master toggle: `INSTALL_EMULATOR="${INSTALL_EMULATOR:-$INSTALL_GUI}"`.
   3. When `INSTALL_GUI=false`, condition **all** related layers:
      * **System packages**: Skip Mesa DRI, Vulkan loader, X11, Wayland, GTK, desktop fonts, and audio libraries.
@@ -99,14 +113,63 @@ Generate the modular subfolder structure:
 
 ---
 
-### Phase 4: Global Registration
-* Register the new container in the *Available Environments* table of the root [`README.md`](../../README.md).
+### Phase 5: Global Catalog & Template Registration
+* Register the new container in the *Available Environments* table, directory layout, and command sections of the root [`README.md`](../../README.md).
 * If new environment variables are introduced, document them in [`.env.example`](../../.env.example).
 
 ---
 
-### Phase 5: Technical Validation & Git Preparation
-* **Automated Sandbox Audit**: Run `./tests/validate-sandboxes.sh` to automatically verify structure, permissions (`100755`), LF line endings, `distrobox.ini` registration, and bash syntax (`bash -n` / `shellcheck`).
-* **Pre-commit Audit**: Run `./.githooks/pre-commit` on staged changes to guarantee zero leaked secrets or personal data.
-* **Pre-push Audit**: Run `./.githooks/pre-push` to audit the entire repository and sandbox structure before push.
-* **Pull Request**: If submitting via PR, complete all sections of [`.github/pull_request_template.md`](../../.github/pull_request_template.md).
+### Phase 6: Static Audits & Live In-Container Smoke Testing (MANDATORY)
+Static checks alone are NOT sufficient. The agent MUST verify the sandbox works end-to-end:
+
+#### 1. Static Repository & Script Audit
+* Run `./tests/validate-sandboxes.sh` to automatically verify structure, permissions (`100755`), LF line endings, `distrobox.ini` registration, and bash syntax (`bash -n` / `shellcheck`).
+* Run `./.githooks/pre-commit` on staged changes and `./.githooks/pre-push` to guarantee zero leaked secrets or personal host paths.
+
+#### 2. Live Container Lifecycle Spin-Up
+Create the sandbox on the host:
+```bash
+./create.sh <name>
+```
+
+#### 3. Internal Container Provisioning
+Execute the unattended setup script inside the running container:
+```bash
+distrobox enter <name> -- bash $WORKSPACE_DIR/distrobox_configs/<name>/setup.sh
+```
+
+#### 4. Live Runtime Smoke Tests
+Execute functional smoke tests inside the container via non-interactive `distrobox enter`:
+* Verify primary runtime version (e.g. `python3 --version`, `java -version`, `rustc --version`).
+* Verify version manager status (`distrobox enter <name> -- bash -l -c "change_version status"`).
+* Test runtime execution with a simple inline script or compilation command.
+* Verify version switching functionality (`change_version set <version>`).
+* Verify complementary developer CLI tools are accessible and functional.
+
+---
+
+### Phase 7: Integration, Commit & Merge Protocol
+
+#### 1. Feature Branch Commit
+Commit staged changes to the feature branch with a semantic commit message:
+```bash
+git add distrobox.ini .env.example README.md <name>/
+./.githooks/pre-commit
+git commit -m "feat(<name>): add <name> development sandbox with <toolchain>"
+```
+
+#### 2. Integration / Merge Workflow
+* **A. Local Pair-Programming (Direct Merge to `main`)**:
+  When collaborating directly with the user on the local host without remote pull requests:
+  1. Run `./.githooks/pre-push` on the feature branch.
+  2. Switch to `main`: `git checkout main`.
+  3. Merge feature branch cleanly: `git merge feature/<name>`.
+  4. Run final repository audit on `main`: `./.githooks/pre-push`.
+  5. Delete the merged local feature branch: `git branch -d feature/<name>`.
+  6. Present live test results and clean status to the user.
+
+* **B. Remote Pull Request Protocol**:
+  When contributing to a shared repository with PR code review:
+  1. Push feature branch: `git push -u origin feature/<name>`.
+  2. Complete all sections of [`.github/pull_request_template.md`](../../.github/pull_request_template.md).
+  3. Ensure CI workflows are enabled (`gh workflow enable ci.yml`).
